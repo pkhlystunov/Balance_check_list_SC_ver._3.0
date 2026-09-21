@@ -93,76 +93,113 @@ async function startFullAudit() {
         const result = await response.json();
         if (result.success) {
             localStorage.setItem('cached_checklist', JSON.stringify(result.data));
-            renderChecklist(result.data);
+            renderGroupedChecklist(result.data);
         }
     } catch (e) {
         const cachedQuestions = localStorage.getItem('cached_checklist');
         if (cachedQuestions) {
-            renderChecklist(JSON.parse(cachedQuestions));
+            renderGroupedChecklist(JSON.parse(cachedQuestions));
         } else {
             container.innerHTML = "Ошибка: чек-лист отсутствует в памяти устройства.";
         }
     }
 }
 
-function renderChecklist(data) {
+// НОВАЯ ЛОГИКА: Группировка вопросов по блокам (аккордеонам)
+function renderGroupedChecklist(data) {
     const container = document.getElementById('questions-container');
     container.innerHTML = "";
+    
+    // Группируем элементы по названию категории
+    const categoriesMap = {};
     data.forEach(function(q) {
-        const card = document.createElement('div');
-        card.className = 'card'; 
-        card.id = 'q-box-' + q.id;
-        
-        let cardHtml = '<div class="badge">' + q.category + '</div><p style="margin:5px 0 12px 0; font-size:16px; font-weight:600;">' + q.question + '</p>';
-        if(q.normative) {
-            cardHtml += '<div class="normative-text"><b>Норматив:</b> <span>' + q.normative + '</span></div>';
+        if (!categoriesMap[q.category]) {
+            categoriesMap[q.category] = [];
         }
-        card.innerHTML = cardHtml;
-        
-        const btnRow = document.createElement('div'); 
-        btnRow.className = 'btn-row';
-        
-        // НАДЁЖНОЕ И БЕЗОПАСНОЕ СОЗДАНИЕ КНОПОК ЧЕРЕЗ DOM ДЛЯ ИСКЛЮЧЕНИЯ ЗАВИСАНИЙ
-        const okBtn = document.createElement('button');
-        okBtn.type = 'button';
-        okBtn.className = 'btn btn-success';
-        okBtn.textContent = 'Соответствует';
-        okBtn.addEventListener('click', function() {
-            setResult(q.id, 'Соответствует', q.question, q.category, q.normative);
-        });
-        
-        const failBtn = document.createElement('button');
-        failBtn.type = 'button';
-        failBtn.className = 'btn btn-danger';
-        failBtn.textContent = 'Нарушение';
-        failBtn.addEventListener('click', function() {
-            setResult(q.id, 'Нарушение', q.question, q.category, q.normative);
-        });
-        
-        btnRow.appendChild(okBtn);
-        btnRow.appendChild(failBtn);
-        card.appendChild(btnRow);
-        
-        const inp = document.createElement('input');
-        inp.type = 'text';
-        inp.id = 'comment-' + q.id;
-        inp.className = 'comment-box';
-        inp.placeholder = 'Опишите детали нарушения...';
-        card.appendChild(inp);
-        
-        const photoContainer = document.createElement('div');
-        photoContainer.className = 'photo-input-container';
-        photoContainer.id = 'photo-area-' + q.id;
-        photoContainer.style.display = 'none';
-        photoContainer.innerHTML = '<label style="margin-top:5px; font-size:13px; color:#555;">Прикрепить фото дефекта (до 2-х штук):</label>' +
-                                   '<input type="file" id="file-' + q.id + '" accept="image/*" multiple style="font-size:13px;" onchange="handlePhotoUpload(this, ' + q.id + ')">' +
-                                   '<div class="photo-preview-grid" id="preview-' + q.id + '"></div>';
-        card.appendChild(photoContainer);
-        
-        container.appendChild(card);
+        categoriesMap[q.category].push(q);
     });
+
+    let catIndex = 0;
+    for (let catName in categoriesMap) {
+        catIndex++;
+        const questionsList = categoriesMap[catName];
+        
+        const blockDiv = document.createElement('div');
+        blockDiv.className = 'category-block';
+        
+        // Шапка раскрывающегося раздела
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'category-header';
+        headerDiv.id = 'cat-header-' + catIndex;
+        headerDiv.innerHTML = '<span>' + catIndex + '. ' + catName + '</span>' +
+                              '<span class="category-counter" id="cat-counter-' + catIndex + '">0 / ' + questionsList.length + '</span>';
+        
+        // Контейнер с вопросами текущей категории
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'category-content';
+        contentDiv.id = 'cat-content-' + catIndex;
+        
+        // Навешиваем клик для раскрытия/сворачивания блока
+        headerDiv.addEventListener('click', (function(cId) {
+            return function() {
+                const content = document.getElementById('cat-content-' + cId);
+                const isVisible = content.style.display === 'block';
+                content.style.display = isVisible ? 'none' : 'block';
+            };
+        })(catIndex));
+
+        // Наполняем карточками критериев безопасности
+        questionsList.forEach(function(q) {
+            const card = document.createElement('div');
+            card.className = 'card'; 
+            card.id = 'q-box-' + q.id;
+            
+            let cardHtml = '<p style="margin:5px 0 12px 0; font-size:16px; font-weight:600;">' + q.question + '</p>';
+            if(q.normative) {
+                cardHtml += '<div class="normative-text"><b>Норматив:</b> <span>' + q.normative + '</span></div>';
+            }
+            card.innerHTML = cardHtml;
+            
+            const btnRow = document.createElement('div'); 
+            btnRow.className = 'btn-row';
+            
+            const okBtn = document.createElement('button');
+            okBtn.type = 'button'; okBtn.className = 'btn btn-success'; okBtn.textContent = 'Соответствует';
+            okBtn.addEventListener('click', function() {
+                setResult(q.id, 'Соответствует', q.question, q.category, q.normative, 'cat-counter-' + catIndex, questionsList.length);
+            });
+            
+            const failBtn = document.createElement('button');
+            failBtn.type = 'button'; failBtn.className = 'btn btn-danger'; failBtn.textContent = 'Нарушение';
+            failBtn.addEventListener('click', function() {
+                setResult(q.id, 'Нарушение', q.question, q.category, q.normative, 'cat-counter-' + catIndex, questionsList.length);
+            });
+            
+            btnRow.appendChild(okBtn);
+            btnRow.appendChild(failBtn);
+            card.appendChild(btnRow);
+            
+            card.innerHTML += '<input type="text" id="comment-' + q.id + '" class="comment-box" placeholder="Опишите детали нарушения...">';
+            
+            const photoContainer = document.createElement('div');
+            photoContainer.className = 'photo-input-container';
+            photoContainer.id = 'photo-area-' + q.id;
+            photoContainer.style.display = 'none';
+            photoContainer.innerHTML = '<label style="margin-top:5px; font-size:13px; color:#555;">Прикрепить фото дефекта (до 2-х штук):</label>' +
+                                       '<input type="file" id="file-' + q.id + '" accept="image/*" multiple style="font-size:13px;" onchange="handlePhotoUpload(this, ' + q.id + ')">' +
+                                       '<div class="photo-preview-grid" id="preview-' + q.id + '"></div>';
+            card.appendChild(photoContainer);
+            
+            contentDiv.appendChild(card);
+        });
+
+        blockDiv.appendChild(headerDiv);
+        blockDiv.appendChild(contentDiv);
+        container.appendChild(blockDiv);
+    }
 }
 
+// Оптимизация и сжатие загружаемых фото на лету
 function handlePhotoUpload(input, questionId) {
     const previewGrid = document.getElementById('preview-' + questionId);
     previewGrid.innerHTML = "";
@@ -179,34 +216,34 @@ function handlePhotoUpload(input, questionId) {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 600;
+                const MAX_WIDTH = 800; // Увеличили разрешение до 800px для большей четкости деталей в PDF
                 let width = img.width;
                 let height = img.height;
                 
-                if (width > MAX_WIDTH) {
-                    height *= MAX_WIDTH / width;
-                    width = MAX_WIDTH;
-                }
+if (width > MAX_WIDTH) {
+    height *= MAX_WIDTH / width;
+    width = MAX_WIDTH;
+}
                 canvas.width = width;
                 canvas.height = height;
-                
-                const ctx = canvas.getContext('2d');
+
+const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                
-                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
                 item.photos.push(compressedBase64);
-                
+
                 const prevImg = document.createElement('img');
                 prevImg.className = 'photo-preview-item';
                 prevImg.src = compressedBase64;
                 previewGrid.appendChild(prevImg);
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
+};
+img.src = event.target.result;
+    };            
+    reader.readAsDataURL(file);
+        });
 }
-function setResult(id, status, question, category, normative) {
+function setResult(id, status, question, category, normative, counterId, totalCount) {
     let item = auditSession.results.find(function(r) { return r.id === id; });
     if (!item) {
         item = { id: id, question: question, category: category, normative: normative, status: status, comment: '', photos: [] };
@@ -217,13 +254,20 @@ function setResult(id, status, question, category, normative) {
     
     const comp = document.getElementById('comment-' + id);
     const photoArea = document.getElementById('photo-area-' + id);
-    if (comp) {
-        comp.style.display = status === 'Нарушение' ? 'block' : 'none';
-    }
-    if (photoArea) {
-        photoArea.style.display = status === 'Нарушение' ? 'block' : 'none';
-    }
+    if (comp) comp.style.display = status === 'Нарушение' ? 'block' : 'none';
+    if (photoArea) photoArea.style.display = status === 'Нарушение' ? 'block' : 'none';
+    
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
+
+    // Пересчет счетчика проверенных вопросов в шапке раскрывающегося блока
+    const checkedInCategory = auditSession.results.filter(function(r) { return r.category === category; }).length;
+    const counterSpan = document.getElementById(counterId);
+    if (counterSpan) {
+        counterSpan.textContent = checkedInCategory + " / " + totalCount;
+        if (checkedInCategory === totalCount) {
+            counterSpan.className = "category-counter completed";
+        }
+    }
 }
 
 async function submitAuditWithOffline() {
@@ -256,7 +300,7 @@ async function submitAuditWithOffline() {
             await fetch(API_URL, { method: 'POST', body: JSON.stringify(auditSession), headers: { 'Content-Type': 'text/plain' } });
             btn.innerText = "✅ Успешно сохранено!";
             document.getElementById('pdf-btn').disabled = false;
-            alert("Данные успешно сохранены в Google Реестр!");
+            alert("Данные успешно занесены в Google Реестр!");
         } catch (e) {
             saveToOfflineQueue(auditSession);
         }
@@ -273,7 +317,7 @@ function saveToOfflineQueue(session) {
     const btn = document.getElementById('submit-btn');
     btn.innerText = "💾 Сохранено офлайн!";
     document.getElementById('pdf-btn').disabled = false;
-    alert("⚠️ Нет связи. Акт сохранен на устройстве. Нажмите кнопку №2 для формирования PDF.");
+    alert("⚠️ Нет связи. Акт сохранен в памяти устройства. Вы можете нажать кнопку №2 и скачать PDF-акт.");
 }
 
 async function syncOfflineQueue() {
@@ -285,9 +329,10 @@ async function syncOfflineQueue() {
         } catch (e) { return; }
     }
     localStorage.removeItem('offline_audit_queue');
-    alert("🔄 Обнаружен интернет: сохраненные офлайн-акты переданы в Google Таблицу!");
+    alert("🔄 Найдена сеть: накопленные офлайн-акты синхронизированы с Google!");
 }
 
+// МОДЕРНИЗИРОВАННАЯ СБОРКА PDF БЕЗ ОБРЕЗКИ И ИСКАЖЕНИЙ ФОТОГРАФИЙ
 function downloadChecklistPdf() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
     
@@ -304,11 +349,8 @@ function downloadChecklistPdf() {
     if (violationsOnly.length === 0) {
         const row = tbody.insertRow();
         const cell = row.insertCell();
-        cell.colSpan = 4;
-        cell.style.padding = "12px";
-        cell.style.textAlign = "center";
-        cell.style.color = "#27ae60";
-        cell.style.fontWeight = "bold";
+        cell.colSpan = 4; cell.style.padding = "12px"; cell.style.textAlign = "center";
+        cell.style.color = "#27ae60"; cell.style.fontWeight = "bold";
         cell.textContent = "Нарушений в ходе проверки не выявлено.";
     } else {
         violationsOnly.forEach(function(item, index) {
@@ -338,6 +380,7 @@ function downloadChecklistPdf() {
         });
     }
 
+    // ПОСТРАНИЧНАЯ НАРЕЗКА ГАЛЕРЕИ (Исключает растягивание и срезание кадров)
     const galleryWrapper = document.getElementById('pdf-gallery-wrapper');
     galleryWrapper.innerHTML = ""; 
     
@@ -362,7 +405,7 @@ function downloadChecklistPdf() {
             const pageDiv = document.createElement('div');
             pageDiv.className = "pdf-page-break"; 
             
-            pageDiv.innerHTML = '<div style="margin-top:20px; font-size:16px; font-weight:bold; color:#2c3e50; border-bottom:1px solid #2c3e50; padding-bottom:5px;">ПРИЛОЖЕНИЕ К АКТУ. ФОТОФИКСАЦИЯ НАРУШЕНИЙ (Лист ' + (Math.floor(i/4) + 1) + ')</div>';
+            pageDiv.innerHTML = '<div style="margin-top:20px; font-size:16px; font-weight:bold; color:#2c3e50; border-bottom:2px solid #2c3e50; padding-bottom:5px; text-transform:uppercase;">Приложение к Акту. Фотофиксация нарушений (Лист ' + (Math.floor(i/4) + 1) + ')</div>';
             
             const grid = document.createElement('div');
             grid.className = "pdf-photo-grid";
@@ -371,8 +414,12 @@ function downloadChecklistPdf() {
             pagePhotos.forEach(function(pData) {
                 const photoCard = document.createElement('div');
                 photoCard.className = "pdf-photo-card";
-                photoCard.innerHTML = '<img class="pdf-photo-img" src="' + pData.src + '">' +
-                                       '<div class="pdf-photo-desc">Фото к пункту №' + pData.index + ' [' + pData.category + ']</div>';
+                
+                // Контейнер с автовыравниванием для предотвращения обрезки вертикальных фото
+                photoCard.innerHTML = '<div class="pdf-photo-container-img">' +
+                                           '<img class="pdf-photo-img" src="' + pData.src + '">' +
+                                       '</div>' +
+                                       '<div class="pdf-photo-desc">Фото к пункту №' + pData.index + ' ' + pData.category + '</div>';
                 grid.appendChild(photoCard);
             });
             
@@ -381,6 +428,7 @@ function downloadChecklistPdf() {
         }
     }
 
+    // Вызываем нативную печать / сохранение в PDF
     window.print();
     
     setTimeout(function() {
