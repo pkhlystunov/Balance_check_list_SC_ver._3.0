@@ -6,7 +6,7 @@ let historyRecords = [];
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(function() {
-        console.log("Офлайн PWA активен");
+        console.log("PWA Active");
     });
 }
 
@@ -16,12 +16,12 @@ window.addEventListener('offline', updateNetworkStatus);
 function updateNetworkStatus() {
     const indicator = document.getElementById('net-indicator');
     if (navigator.onLine) {
-        indicator.textContent = "🌐 Режим: Онлайн (Данные пишутся in облако)";
+        indicator.textContent = "Режим: Онлайн (Данные пишутся в облако)";
         indicator.className = "network-status online-mode";
         syncOfflineQueue();
         loadAnalyticsData(); 
     } else {
-        indicator.textContent = "⚠️ Режим: Офлайн (Данные сохраняются на телефон)";
+        indicator.textContent = "Режим: Офлайн (Данные сохраняются на телефон)";
         indicator.className = "network-status offline-mode";
     }
 }
@@ -78,7 +78,7 @@ async function loadAnalyticsData() {
             historyRecords = res.data;
             calculateAnalytics();
         }
-    } catch (e) { console.log("Ошибка аналитики: ", e); }
+    } catch (e) { console.log("Error analytics: ", e); }
 }
 
 function calculateAnalytics() {
@@ -180,7 +180,6 @@ function renderGroupedChecklist(data) {
         
         const blockDiv = document.createElement('div'); blockDiv.className = 'category-block';
         const headerDiv = document.createElement('div'); headerDiv.className = 'category-header'; headerDiv.id = 'cat-header-' + catIndex;
-        // Упрощено: Выводим статическое число вопросов в разделе без постоянных пересчетов
         headerDiv.innerHTML = "<span>" + catIndex + ". " + catName + "</span><span class='category-counter'>Вопросов: " + questionsList.length + "</span>";
         
         const contentDiv = document.createElement('div'); contentDiv.className = 'category-content'; contentDiv.id = 'cat-content-' + catIndex;
@@ -330,7 +329,6 @@ async function syncOfflineQueue() {
     loadAnalyticsData();
 }
 
-// ИСПРАВЛЕННЫЙ МЕТОД: Принудительное скачивание Blob-файла на смартфонах без вывода на экран
 function downloadChecklistPdf() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
     
@@ -370,7 +368,7 @@ function downloadChecklistPdf() {
                 cQuest.textContent = item.question;
                 const sm = document.createElement('small');
                 sm.style.color = '#555'; sm.style.display = 'block'; sm.style.marginTop = '4px';
-                sm.textContent = 'Норматив: ' + item.normative;
+                sm.textContent = 'Normative: ' + item.normative;
                 cQuest.appendChild(sm);
             } else {
                 cQuest.textContent = item.question;
@@ -432,7 +430,7 @@ function downloadChecklistPdf() {
                 
                 const descDiv = document.createElement('div');
                 descDiv.className = "pdf-photo-desc";
-                descDiv.textContent = 'Нарушение №' + pData.index + ' ' + pData.category;
+                descDiv.textContent = 'Нарушение ' + pData.index + ' ' + pData.category;
                 photoCard.appendChild(descDiv);
                 
                 grid.appendChild(photoCard);
@@ -448,19 +446,18 @@ function downloadChecklistPdf() {
 
     const pdfOptions = {
         margin: 10,
-        filename: 'Акт_ОТ_' + auditSession.objectName.replace(/[^a-zA-Z0-9а-яА-Я_]/g, "_") + '_' + currentDateStr + '.pdf',
+        filename: 'Akt_OT_' + auditSession.objectName.replace(/[^a-zA-Z0-9а-яА-Я_]/g, "_") + '_' + currentDateStr + '.pdf',
         image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 1.5, useCORS: true, logging: false }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    // ГЕНЕРАЦИЯ ЧИСТОГО СКАЧИВАНИЯ БЕЗ СКРЫТЫХ КОНФЛИКТОВ RE-RENDER
-    html2pdf().set(pdfOptions).from(printElement).output('bloburl').then(function(blobUrl) {
+    html2pdf().set(pdfOptions).from(printElement).toPdf().get('pdf').then(function(pdf) {
         printElement.style.display = 'none';
         document.getElementById('pdf-btn').disabled = false;
         
-        // Создаем виртуальную нативную ссылку для скачивания файла телефоном
+        const blobUrl = URL.createObjectURL(new Blob([pdf.output('blob')], { type: 'application/pdf' }));
         const downloadLink = document.createElement('a');
         downloadLink.href = blobUrl;
         downloadLink.download = pdfOptions.filename;
@@ -469,17 +466,18 @@ function downloadChecklistPdf() {
         document.body.removeChild(downloadLink);
 
         setTimeout(function() {
-            if (confirm("Акт успешно сохранен как файл! Очистить форму для новой проверки?")) {
+            if (confirm("Акт сохранен! Начать новую проверку?")) {
                 location.reload();
             }
         }, 1000);
-}).catch(function(err) {
-       console.error(err);
+    }).catch(function(err) {
+        console.error(err);
         printElement.style.display = 'none';
-     alert("Ошибка сборки PDF. Попробуйте нажать кнопку еще раз.");
-        });
-    }
-function backToStep1() {
-    document.getElementById('step-3-checklist').style.display = 'none';
+        alert("Ошибка сборки PDF.");
+    });
+}
+
+function backToStep1() { 
+document.getElementById('step-3-checklist').style.display = 'none';
     document.getElementById('step-1-form').style.display = 'block';
     }
