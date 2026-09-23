@@ -1,9 +1,6 @@
 // НА СТРОКЕ 2 УКАЖИТЕ ССЫЛКУ, КОТОРУЮ ВАМ ВЫДАЛ GOOGLE APPS SCRIPT ПРИ ДЕПЛОЕ:
 const API_URL = "https://script.google.com/macros/s/AKfycbzc8Bs2D0WvwjlXQBACVEk7QThoCYilHv28mj8EqPtkFsAqBAGHC6dLtcDP98pc6Bcy_Q/exec"; 
 
-// НА СТРОКЕ 2 УКАЖИТЕ ССЫЛКУ, КОТОРУЮ ВАМ ВЫДАЛ GOOGLE APPS SCRIPT ПРИ ДЕПЛОЕ:
-const API_URL = "https://google.com"; 
-
 let auditSession = { inspector: '', objectName: '', contractor: '', results: [] };
 let historyRecords = []; 
 
@@ -44,7 +41,11 @@ document.addEventListener("DOMContentLoaded", async function() {
         }
     } catch (e) {
         const cached = localStorage.getItem('cached_setup');
-        if (cached) populateSelects(JSON.parse(cached));
+        if (cached) {
+            populateSelects(JSON.parse(cached));
+        } else {
+            document.getElementById('setup-loading').innerHTML = "<b style='color:red;'>Первый запуск требует интернет-соединения.</b>";
+        }
     }
 });
 
@@ -339,7 +340,6 @@ async function syncOfflineQueue() {
     loadAnalyticsData();
 }
 
-// ВОЗВРАЩЕННАЯ ТАБЛИЧНАЯ СБОРКА АКТА + ДИНАМИЧЕСКИЕ СТРАНИЦЫ ФОТОФИКСАЦИИ
 function downloadChecklistPdf() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
     
@@ -473,11 +473,11 @@ function downloadChecklistPdf() {
     }).catch(function(err) {
         console.error(err);
         printElement.style.display = 'none';
-alert("Ошибка сборки PDF. Попробуйте нажать кнопку еще раз.");
-        });
-    }
+        alert("Ошибка сборки PDF. Попробуйте нажать кнопку еще раз.");
+    });
+}
 
-function backToStep1() {
-    document.getElementById('step-3-checklist').style.display = 'none';
+function backToStep1() { 
+document.getElementById('step-3-checklist').style.display = 'none';
     document.getElementById('step-1-form').style.display = 'block';
     }
