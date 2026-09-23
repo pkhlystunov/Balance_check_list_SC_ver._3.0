@@ -41,11 +41,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         }
     } catch (e) {
         const cached = localStorage.getItem('cached_setup');
-        if (cached) {
-            populateSelects(JSON.parse(cached));
-        } else {
-            document.getElementById('setup-loading').innerHTML = "<b style='color:red;'>Первый запуск требует интернет-соединения.</b>";
-        }
+        if (cached) populateSelects(JSON.parse(cached));
     }
 });
 
@@ -95,9 +91,7 @@ function calculateAnalytics() {
     const start = startVal ? new Date(startVal) : null;
     const end = endVal ? new Date(endVal) : null;
     
-    let totalChecks = 0;
-    let totalViolations = 0;
-    let contractorMap = {};
+    let totalChecks = 0; let totalViolations = 0; let contractorMap = {};
 
     historyRecords.forEach(function(r) {
         const rDate = new Date(r.date);
@@ -131,7 +125,6 @@ function calculateAnalytics() {
             tbody.appendChild(tr);
         });
     }
-
     document.getElementById('analytics-loading').style.display = 'none';
     document.getElementById('analytics-content').style.display = 'block';
 }
@@ -185,17 +178,11 @@ function renderGroupedChecklist(data) {
         catIndex++;
         const questionsList = categoriesMap[catName];
         
-        const blockDiv = document.createElement('div');
-        blockDiv.className = 'category-block';
-        
-        const headerDiv = document.createElement('div');
-        headerDiv.className = 'category-header';
-        headerDiv.id = 'cat-header-' + catIndex;
+        const blockDiv = document.createElement('div'); blockDiv.className = 'category-block';
+        const headerDiv = document.createElement('div'); headerDiv.className = 'category-header'; headerDiv.id = 'cat-header-' + catIndex;
         headerDiv.innerHTML = "<span>" + catIndex + ". " + catName + "</span><span class='category-counter' id='cat-counter-" + catIndex + "'>0 / " + questionsList.length + "</span>";
         
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'category-content';
-        contentDiv.id = 'cat-content-' + catIndex;
+        const contentDiv = document.createElement('div'); contentDiv.className = 'category-content'; contentDiv.id = 'cat-content-' + catIndex;
         
         (function(cId) {
             headerDiv.addEventListener('click', function() {
@@ -205,52 +192,83 @@ function renderGroupedChecklist(data) {
         })(catIndex);
 
         questionsList.forEach(function(q) {
-            const card = document.createElement('div');
-            card.className = 'card'; card.id = 'q-box-' + q.id;
+            const card = document.createElement('div'); card.className = 'card'; card.id = 'q-box-' + q.id;
             
-            const qTxt = document.createElement('p');
-            qTxt.style.margin = '5px 0 12px 0'; qTxt.style.fontSize = '16px'; qTxt.style.fontWeight = '600';
-            qTxt.textContent = q.question;
+            const qTxt = document.createElement('p'); qTxt.style.margin = '5px 0 12px 0'; qTxt.style.fontSize = '16px'; qTxt.style.fontWeight = '600'; qTxt.textContent = q.question;
             card.appendChild(qTxt);
             
             if(q.normative) {
-                const normDiv = document.createElement('div');
-                normDiv.className = 'normative-text'; normDiv.innerHTML = '<b>Норматив:</b> ';
+                const normDiv = document.createElement('div'); normDiv.className = 'normative-text'; normDiv.innerHTML = '<b>Норматив:</b> ';
                 const normSpan = document.createElement('span'); normSpan.textContent = q.normative;
                 normDiv.appendChild(normSpan); card.appendChild(normDiv);
             }
             
             const btnRow = document.createElement('div'); btnRow.className = 'btn-row';
             
-            const okBtn = document.createElement('button');
-            okBtn.type = 'button'; okBtn.className = 'btn btn-success'; okBtn.textContent = 'Соответствует';
+            const okBtn = document.createElement('button'); okBtn.type = 'button'; okBtn.className = 'btn btn-success'; okBtn.textContent = 'Соответствует';
             okBtn.addEventListener('click', function() { setResult(q.id, 'Соответствует', q.question, catName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
             
-            const failBtn = document.createElement('button');
-            failBtn.type = 'button'; failBtn.className = 'btn btn-danger'; failBtn.textContent = 'Нарушение';
+            const failBtn = document.createElement('button'); failBtn.type = 'button'; failBtn.className = 'btn btn-danger'; failBtn.textContent = 'Нарушение';
             failBtn.addEventListener('click', function() { setResult(q.id, 'Нарушение', q.question, catName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
             
             btnRow.appendChild(okBtn); btnRow.appendChild(failBtn); card.appendChild(btnRow);
             
-            const commentInp = document.createElement('input');
-            commentInp.type = 'text'; commentInp.id = 'comment-' + q.id; commentInp.className = 'comment-box'; commentInp.placeholder = 'Опишите детали нарушения...';
+            const commentInp = document.createElement('input'); commentInp.type = 'text'; commentInp.id = 'comment-' + q.id; commentInp.className = 'comment-box'; commentInp.placeholder = 'Опишите детали нарушения...';
             card.appendChild(commentInp);
             
+            // НОВОЕ: Контейнер для загрузки до 4-х фото на нарушение
+            const photoContainer = document.createElement('div'); photoContainer.className = 'photo-input-container'; photoContainer.id = 'photo-area-' + q.id; photoContainer.style.display = 'none';
+            photoContainer.innerHTML = '<label style="margin-top:5px; font-size:13px; color:#555;">Прикрепить фото дефекта (до 4-х штук):</label>' +
+                                       '<input type="file" id="file-' + q.id + '" accept="image/*" multiple style="font-size:13px;" onchange="handlePhotoUpload(this, ' + q.id + ')">' +
+                                       '<div class="photo-preview-grid" id="preview-' + q.id + '"></div>';
+            card.appendChild(photoContainer);
             contentDiv.appendChild(card);
         });
-
         blockDiv.appendChild(headerDiv); blockDiv.appendChild(contentDiv); container.appendChild(blockDiv);
     }
+}
+
+function handlePhotoUpload(input, questionId) {
+    const previewGrid = document.getElementById('preview-' + questionId);
+    previewGrid.innerHTML = "";
+    let item = auditSession.results.find(function(r) { return r.id === questionId; });
+    if (!item) return;
+    item.photos = []; 
+
+    const files = Array.from(input.files).slice(0, 4); // ИСПРАВЛЕНО: Лимит увеличен до 4-х фото
+    files.forEach(function(file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800; let width = img.width; let height = img.height;
+                if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+                item.photos.push(compressedBase64);
+                
+                const prevImg = document.createElement('img'); prevImg.className = 'photo-preview-item'; prevImg.src = compressedBase64;
+                previewGrid.appendChild(prevImg);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 function setResult(id, status, question, category, normative, counterId, totalCount) {
     let item = auditSession.results.find(function(r) { return r.id === id; });
     if (!item) {
-        item = { id: id, question: question, category: category, normative: normative, status: status, comment: '' };
+        item = { id: id, question: question, category: category, normative: normative, status: status, comment: '', photos: [] };
         auditSession.results.push(item);
     } else { item.status = status; }
     
     const comp = document.getElementById('comment-' + id);
+    const photoArea = document.getElementById('photo-area-' + id);
     if (comp) comp.style.display = status === 'Нарушение' ? 'block' : 'none';
+    if (photoArea) photoArea.style.display = status === 'Нарушение' ? 'block' : 'none';
+    
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
 
     const checkedInCategory = auditSession.results.filter(function(r) { return r.category === category; }).length;
@@ -287,7 +305,7 @@ async function submitAuditWithOffline() {
         btn.innerText = "⏳ Отправка в облако...";
         try {
             await fetch(API_URL, { method: 'POST', body: JSON.stringify(auditSession), headers: { 'Content-Type': 'text/plain' } });
-            btn.innerText = "Aкт сохранен!";
+            btn.innerText = "Акт сохранен!";
             document.getElementById('pdf-btn').disabled = false;
             alert("Данные успешно сохранены в реестр Google!");
             loadAnalyticsData(); 
@@ -319,13 +337,56 @@ async function syncOfflineQueue() {
     loadAnalyticsData();
 }
 
+// УЛУЧШЕННАЯ ПЕЧАТЬ: Генерация текстовой части + постраничная нарезка фото по 4 шт. на лист
 function downloadChecklistPdf() {
-    document.getElementById('p-date').textContent = new Date().toLocaleDateString('ru-RU');
+    const currentDateStr = new Date().toLocaleDateString('ru-RU');
+    document.getElementById('p-date').textContent = currentDateStr;
     document.getElementById('p-inspector').textContent = auditSession.inspector;
     document.getElementById('p-object').textContent = auditSession.objectName;
     document.getElementById('p-contractor').textContent = auditSession.contractor;
     document.getElementById('p-violations').textContent = finalViolationsText;
     
+    const galleryWrapper = document.getElementById('pdf-gallery-wrapper');
+    galleryWrapper.innerHTML = ""; 
+    
+    let allUploadedPhotos = [];
+    let itemIndex = 0;
+    
+    auditSession.results.forEach(function(item) {
+        if (item.status === 'Нарушение') {
+            itemIndex++;
+            if (item.photos && item.photos.length > 0) {
+                item.photos.forEach(function(base64Src) {
+                    allUploadedPhotos.push({ src: base64Src, index: itemIndex, category: item.category });
+                });
+            }
+        }
+    });
+
+    if (allUploadedPhotos.length > 0) {
+        let photosPerPage = 4;
+        for (let i = 0; i < allUploadedPhotos.length; i += photosPerPage) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = "pdf-page-break"; 
+            
+            pageDiv.innerHTML = '<div style="margin-top:25px; font-size:16px; font-weight:bold; color:#2c3e50; border-bottom:1px solid #2c3e50; padding-bottom:5px; text-transform:uppercase;">Приложение к Акту. Фотофиксация нарушений (Лист ' + (Math.floor(i/4) + 1) + ')</div>';
+            
+            const grid = document.createElement('div');
+            grid.className = "pdf-photo-grid";
+            
+            let pagePhotos = allUploadedPhotos.slice(i, i + photosPerPage);
+            pagePhotos.forEach(function(pData) {
+                const photoCard = document.createElement('div');
+                photoCard.className = "pdf-photo-card";
+                photoCard.innerHTML = '<div class="pdf-photo-container-img"><img class="pdf-photo-img" src="' + pData.src + '"></div>' +
+                                       '<div class="pdf-photo-desc">Фото к нарушению №' + pData.index + ' [' + pData.category + ']</div>';
+                grid.appendChild(photoCard);
+            });
+            pageDiv.appendChild(grid);
+            galleryWrapper.appendChild(pageDiv);
+        }
+    }
+
     window.print();
     
     setTimeout(function() {
