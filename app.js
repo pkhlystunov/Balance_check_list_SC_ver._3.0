@@ -2,10 +2,12 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbzc8Bs2D0WvwjlXQBACVEk7QThoCYilHv28mj8EqPtkFsAqBAGHC6dLtcDP98pc6Bcy_Q/exec"; 
 
 let auditSession = { inspector: '', objectName: '', contractor: '', results: [] };
-let historyRecords = []; // Массив записей из реестра для аналитики
+let historyRecords = []; 
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.register('./sw.js').then(function() {
+        console.log("Офлайн PWA активен");
+    });
 }
 
 window.addEventListener('online', updateNetworkStatus);
@@ -17,7 +19,7 @@ function updateNetworkStatus() {
         indicator.textContent = "🌐 Режим: Онлайн (Данные пишутся в облако)";
         indicator.className = "network-status online-mode";
         syncOfflineQueue();
-        loadAnalyticsData(); // Подгружаем историю для статистики
+        loadAnalyticsData(); 
     } else {
         indicator.textContent = "⚠️ Режим: Офлайн (Данные сохраняются на телефон)";
         indicator.className = "network-status offline-mode";
@@ -28,14 +30,22 @@ document.addEventListener("DOMContentLoaded", async function() {
     updateNetworkStatus();
     try {
         const response = await fetch(API_URL + "?action=getSetupData", { method: "GET", redirect: "follow" });
-        const res = await response.json();
+        const rawText = await response.text();
+        if (rawText.includes("Google Accounts") || rawText.includes("Sign in")) {
+            throw new Error("Защита Google заблокировала анонимный доступ.");
+        }
+        const res = JSON.parse(rawText);
         if (res.success) {
             localStorage.setItem('cached_setup', JSON.stringify(res));
             populateSelects(res);
         }
     } catch (e) {
         const cached = localStorage.getItem('cached_setup');
-        if (cached) populateSelects(JSON.parse(cached));
+        if (cached) {
+            populateSelects(JSON.parse(cached));
+        } else {
+            document.getElementById('setup-loading').innerHTML = "<b style='color:red;'>Первый запуск требует интернет-соединения.</b>";
+        }
     }
 });
 
@@ -47,22 +57,22 @@ function populateSelects(res) {
     objectSelect.innerHTML = '<option value="">-- Выберите объект --</option>';
     contractorSelect.innerHTML = '<option value="">-- Выберите подрядчика --</option>';
     
-    res.objects.forEach(obj => {
+    res.objects.forEach(function(obj) {
         objectSelect.add(new Option(obj.id + " | " + obj.name, obj.name));
         filterObject.add(new Option(obj.name, obj.name));
     });
-    res.contractors.forEach(contr => contractorSelect.add(new Option(contr, contr)));
+    res.contractors.forEach(function(contr) {
+        contractorSelect.add(new Option(contr, contr));
+    });
     
     document.getElementById('setup-loading').style.display = 'none';
     document.getElementById('form-fields-wrapper').style.display = 'block';
 }
-
 function toggleMenu() {
     document.getElementById('analytics-sidebar').classList.toggle('active');
     document.getElementById('menu-overlay').classList.toggle('active');
 }
 
-// Загрузка исторических записей для построения рейтингов
 async function loadAnalyticsData() {
     if (!navigator.onLine) return;
     try {
@@ -89,7 +99,7 @@ function calculateAnalytics() {
     let totalViolations = 0;
     let contractorMap = {};
 
-    historyRecords.forEach(r => {
+    historyRecords.forEach(function(r) {
         const rDate = new Date(r.date);
         if (start && rDate < start) return;
         if (end && rDate > end) return;
@@ -105,10 +115,9 @@ function calculateAnalytics() {
     document.getElementById('stat-total-checks').textContent = totalChecks;
     document.getElementById('stat-total-violations').textContent = totalViolations;
 
-    // Сортировка антирейтинга подрядчиков
-    const sortedContractors = Object.keys(contractorMap).map(name => {
+    const sortedContractors = Object.keys(contractorMap).map(function(name) {
         return { name: name, count: contractorMap[name] };
-    }).sort((a, b) => b.count - a.count);
+    }).sort(function(a, b) { return b.count - a.count; });
 
     const tbody = document.getElementById('contractor-rating-body');
     tbody.innerHTML = "";
@@ -116,9 +125,9 @@ function calculateAnalytics() {
     if(sortedContractors.length === 0) {
         tbody.innerHTML = "<tr><td colspan='2' style='text-align:center; color:green;'>Нарушений нет</td></tr>";
     } else {
-        sortedContractors.forEach(c => {
+        sortedContractors.forEach(function(c) {
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${c.name}</td><td style='text-align:center; font-weight:bold; color:red;'>${c.count}</td>`;
+            tr.innerHTML = "<td>" + c.name + "</td><td style='text-align:center; font-weight:bold; color:red;'>" + c.count + "</td>";
             tbody.appendChild(tr);
         });
     }
@@ -160,13 +169,12 @@ async function startFullAudit() {
     }
 }
 
-// Группировка вопросов строго по Разделам (Колонка B листа 3_Чек_лист)
 function renderGroupedChecklist(data) {
     const container = document.getElementById('questions-container');
     container.innerHTML = "";
     
     const categoriesMap = {};
-    data.forEach(q => {
+    data.forEach(function(q) {
         const blockName = q.category ? q.category : "Общий раздел";
         if (!categoriesMap[blockName]) categoriesMap[blockName] = [];
         categoriesMap[blockName].push(q);
@@ -183,7 +191,7 @@ function renderGroupedChecklist(data) {
         const headerDiv = document.createElement('div');
         headerDiv.className = 'category-header';
         headerDiv.id = 'cat-header-' + catIndex;
-        headerDiv.innerHTML = `<span>${catIndex}. ${catName}</span><span class="category-counter" id="cat-counter-${catIndex}">0 / ${questionsList.length}</span>`;
+        headerDiv.innerHTML = "<span>" + catIndex + ". " + catName + "</span><span class='category-counter' id='cat-counter-" + catIndex + "'>0 / " + questionsList.length + "</span>";
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'category-content';
@@ -196,11 +204,21 @@ function renderGroupedChecklist(data) {
             });
         })(catIndex);
 
-        questionsList.forEach(q => {
+        questionsList.forEach(function(q) {
             const card = document.createElement('div');
             card.className = 'card'; card.id = 'q-box-' + q.id;
-            card.innerHTML = `<p style="margin:5px 0 12px 0; font-size:16px; font-weight:600;">${q.question}</p>`;
-            if(q.normative) card.innerHTML += `<div class="normative-text"><b>Норматив:</b> <span>${q.normative}</span></div>`;
+            
+            const qTxt = document.createElement('p');
+            qTxt.style.margin = '5px 0 12px 0'; qTxt.style.fontSize = '16px'; qTxt.style.fontWeight = '600';
+            qTxt.textContent = q.question;
+            card.appendChild(qTxt);
+            
+            if(q.normative) {
+                const normDiv = document.createElement('div');
+                normDiv.className = 'normative-text'; normDiv.innerHTML = '<b>Норматив:</b> ';
+                const normSpan = document.createElement('span'); normSpan.textContent = q.normative;
+                normDiv.appendChild(normSpan); card.appendChild(normDiv);
+            }
             
             const btnRow = document.createElement('div'); btnRow.className = 'btn-row';
             
@@ -213,7 +231,11 @@ function renderGroupedChecklist(data) {
             failBtn.addEventListener('click', function() { setResult(q.id, 'Нарушение', q.question, catName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
             
             btnRow.appendChild(okBtn); btnRow.appendChild(failBtn); card.appendChild(btnRow);
-            card.innerHTML += `<input type="text" id="comment-${q.id}" class="comment-box" placeholder="Опишите детали нарушения...">`;
+            
+            const commentInp = document.createElement('input');
+            commentInp.type = 'text'; commentInp.id = 'comment-' + q.id; commentInp.className = 'comment-box'; commentInp.placeholder = 'Опишите детали нарушения...';
+            card.appendChild(commentInp);
+            
             contentDiv.appendChild(card);
         });
 
@@ -221,7 +243,7 @@ function renderGroupedChecklist(data) {
     }
 }
 function setResult(id, status, question, category, normative, counterId, totalCount) {
-    let item = auditSession.results.find(r => r.id === id);
+    let item = auditSession.results.find(function(r) { return r.id === id; });
     if (!item) {
         item = { id: id, question: question, category: category, normative: normative, status: status, comment: '' };
         auditSession.results.push(item);
@@ -231,7 +253,7 @@ function setResult(id, status, question, category, normative, counterId, totalCo
     if (comp) comp.style.display = status === 'Нарушение' ? 'block' : 'none';
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
 
-    const checkedInCategory = auditSession.results.filter(r => r.category === category).length;
+    const checkedInCategory = auditSession.results.filter(function(r) { return r.category === category; }).length;
     const counterSpan = document.getElementById(counterId);
     if (counterSpan) {
         counterSpan.textContent = checkedInCategory + " / " + totalCount;
@@ -243,14 +265,14 @@ async function submitAuditWithOffline() {
     if (auditSession.results.length === 0) return alert("Вы не ответили ни на один вопрос!");
     
     const violations = [];
-    auditSession.results.forEach(item => {
+    auditSession.results.forEach(function(item) {
         const inputField = document.getElementById('comment-' + item.id);
         if (inputField) item.comment = inputField.value.trim() || "не расписано";
         
         if (item.status === 'Нарушение') {
-            let line = `• [${item.category}] ${item.question}`;
-            if (item.normative) line += ` (Норматив: ${item.normative})`;
-            line += `\n  Замечание: ${item.comment}`;
+            let line = '• [' + item.category + '] ' + item.question;
+            if (item.normative) line += ' (Норматив: ' + item.normative + ')';
+            line += '\n  Замечание: ' + item.comment;
             violations.push(line);
         }
     });
@@ -268,7 +290,7 @@ async function submitAuditWithOffline() {
             btn.innerText = "Aкт сохранен!";
             document.getElementById('pdf-btn').disabled = false;
             alert("Данные успешно сохранены в реестр Google!");
-            loadAnalyticsData(); // Обновляем боковую аналитику свежими данными
+            loadAnalyticsData(); 
         } catch (e) { saveToOfflineQueue(auditSession); }
     } else { saveToOfflineQueue(auditSession); }
 }
@@ -297,7 +319,6 @@ async function syncOfflineQueue() {
     loadAnalyticsData();
 }
 
-// НАША ИДЕАЛЬНАЯ И НЕУЯЗВИМАЯ НА ТИВНАЯ ПЕЧАТЬ ОТ 18.09.2026
 function downloadChecklistPdf() {
     document.getElementById('p-date').textContent = new Date().toLocaleDateString('ru-RU');
     document.getElementById('p-inspector').textContent = auditSession.inspector;
