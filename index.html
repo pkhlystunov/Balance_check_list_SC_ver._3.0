@@ -27,12 +27,12 @@
         .online-mode { background: #d4edda; color: #155724; }
         .offline-mode { background: #fff3cd; color: #856404; }
 
-        /* Интерфейс камеры в карточках */
+        /* Камера в карточках */
         .photo-input-container { margin-top: 12px; }
         .photo-preview-grid { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .photo-preview-item { width: 70px; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
         
-        /* Исправленная галерея в PDF: Крупный вывод без рамок и без обрезки горизонтальных кадров */
+        /* Сетка галереи в PDF без обрезки кадров */
         .pdf-photo-grid { 
             display: grid; 
             grid-template-columns: repeat(2, 1fr); 
@@ -86,11 +86,9 @@
 </head>
 <body>
 
-<!-- Кнопка вызова модуля аналитики -->
 <button class="menu-btn" onclick="toggleMenu()">📊 Аналитика</button>
 <div class="sidebar-overlay" id="menu-overlay" onclick="toggleMenu()"></div>
 
-<!-- Боковая шторка аналитики -->
 <div class="sidebar" id="analytics-sidebar">
     <button class="close-menu-btn" onclick="toggleMenu()">×</button>
     <h3 style="text-align:left; margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 5px;">📊 Мониторинг нарушений</h3>
@@ -114,8 +112,7 @@
             <p style="margin:4px 0; font-size:14px;">Выявлено нарушений всего: <b id="stat-total-violations" style="color:var(--danger);">0</b></p>
         </div>
 
-        <h4 style="margin-bottom:5px; color:var(--primary);">🏆 Антирейтинг Подрядчиков</h4>
-        <p style="font-size:11px; color:var(--secondary); margin:0 0 8px 0;">(Сортировка по количеству дефектов)</p>
+        <h4 style="margin-bottom:5px; color:var(--primary);">🏆 Anti-Рейтинг Подрядчиков</h4>
         <table class="rating-table">
             <thead>
                 <tr><th>Подрядчик</th><th style="width:25%; text-align:center;">Дефекты</th></tr>
@@ -130,7 +127,6 @@
     
     <div id="net-indicator" class="network-status online-mode">🌐 Режим: Онлайн (Данные пишутся в облако)</div>
 
-    <!-- ШАГ 1: Экран выбора параметров -->
     <div id="step-1-form" class="card primary-border">
         <div class="loading-overlay" id="setup-loading">⏳ Подключение к реестрам Google Таблиц...</div>
         
@@ -154,7 +150,6 @@
         <div id="error-display" class="error-log"></div>
     </div>
 
-    <!-- ШАГ 2: Экран прохождения аудита -->
     <div id="step-3-checklist" style="display:none;">
         <div class="audit-header card">
             <h3 style="margin-top:0; color:#2c3e50;">Текущий обход</h3>
@@ -174,7 +169,6 @@
     </div>
 </div>
 
-<!-- ОФИЦИАЛЬНАЯ ТАБЛИЧНАЯ ПЕЧАТНАЯ ФОРМА АКТА -->
 <div id="print-blank-zone">
     <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 25px;">
         <div style="margin: 0; color: #2c3e50; font-size: 22px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">АКТ ПРОВЕРКИ СОБЛЮДЕНИЯ ТРЕБОВАНИЙ ОТиПБ</div>
@@ -203,3 +197,12 @@
     
     <div style="margin-top: 40px; padding-top: 20px; display: flex; justify-content: space-between; font-size: 14px; page-break-inside: avoid;">
         <div>Подпись проверяющего: _____________________</div>
+        <div>Подпись представителя подрядчика: _____________________</div>
+    </div>
+
+    <div id="pdf-gallery-wrapper"></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
