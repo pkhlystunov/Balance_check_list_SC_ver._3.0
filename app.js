@@ -1,12 +1,14 @@
 // НА СТРОКЕ 2 УКАЖИТЕ ССЫЛКУ, КОТОРУЮ ВАМ ВЫДАЛ GOOGLE APPS SCRIPT ПРИ ДЕПЛОЕ:
 const API_URL = "https://script.google.com/macros/s/AKfycbzc8Bs2D0WvwjlXQBACVEk7QThoCYilHv28mj8EqPtkFsAqBAGHC6dLtcDP98pc6Bcy_Q/exec"; 
 
+const API_URL = "https://google.com"; 
+
 let auditSession = { inspector: '', objectName: '', contractor: '', results: [] };
 let historyRecords = []; 
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(function() {
-        console.log("PWA Active");
+        console.log("Офлайн PWA активен");
     });
 }
 
@@ -78,7 +80,7 @@ async function loadAnalyticsData() {
             historyRecords = res.data;
             calculateAnalytics();
         }
-    } catch (e) { console.log("Error analytics: ", e); }
+    } catch (e) { console.log("Ошибка аналитики: ", e); }
 }
 
 function calculateAnalytics() {
@@ -287,8 +289,7 @@ async function submitAuditWithOffline() {
         }
     });
 
-    finalViolationsText = violations.length > 0 ? violations.join("\n\n") : "Нарушений в ходе проверки не выявлено. Объект соответствует нормам ОТиПБ.";
-    auditSession.aggregatedViolations = finalViolationsText;
+    auditSession.aggregatedViolations = violations.length > 0 ? violations.join("\n\n") : "Нарушений в ходе проверки не выявлено. Объект соответствует нормам ОТиПБ.";
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true;
@@ -329,6 +330,7 @@ async function syncOfflineQueue() {
     loadAnalyticsData();
 }
 
+// НАДЕЖНЫЙ СИСТЕМНЫЙ ВЫЗОВ НА ТИВНОЙ ПЕЧАТИ WINDOW.PRINT()
 function downloadChecklistPdf() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
     
@@ -368,7 +370,7 @@ function downloadChecklistPdf() {
                 cQuest.textContent = item.question;
                 const sm = document.createElement('small');
                 sm.style.color = '#555'; sm.style.display = 'block'; sm.style.marginTop = '4px';
-                sm.textContent = 'Normative: ' + item.normative;
+                sm.textContent = 'Норматив: ' + item.normative;
                 cQuest.appendChild(sm);
             } else {
                 cQuest.textContent = item.question;
@@ -430,7 +432,7 @@ function downloadChecklistPdf() {
                 
                 const descDiv = document.createElement('div');
                 descDiv.className = "pdf-photo-desc";
-                descDiv.textContent = 'Нарушение ' + pData.index + ' ' + pData.category;
+                descDiv.textContent = 'Нарушение №' + pData.index + ' ' + pData.category;
                 photoCard.appendChild(descDiv);
                 
                 grid.appendChild(photoCard);
@@ -441,43 +443,17 @@ function downloadChecklistPdf() {
         }
     }
 
-    const printElement = document.getElementById('print-blank-zone');
-    printElement.style.display = 'block'; 
-
-    const pdfOptions = {
-        margin: 10,
-        filename: 'Akt_OT_' + auditSession.objectName.replace(/[^a-zA-Z0-9а-яА-Я_]/g, "_") + '_' + currentDateStr + '.pdf',
-        image: { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 1.5, useCORS: true, logging: false }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
-
-    html2pdf().set(pdfOptions).from(printElement).toPdf().get('pdf').then(function(pdf) {
-        printElement.style.display = 'none';
-        document.getElementById('pdf-btn').disabled = false;
-        
-        const blobUrl = URL.createObjectURL(new Blob([pdf.output('blob')], { type: 'application/pdf' }));
-        const downloadLink = document.createElement('a');
-        downloadLink.href = blobUrl;
-        downloadLink.download = pdfOptions.filename;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-
-        setTimeout(function() {
-            if (confirm("Акт сохранен! Начать новую проверку?")) {
-                location.reload();
-            }
-        }, 1000);
-    }).catch(function(err) {
-        console.error(err);
-        printElement.style.display = 'none';
-        alert("Ошибка сборки PDF.");
-    });
+    // Запуск системной печати. Никаких выводов на страницу!
+    window.print();
+    
+    setTimeout(function() {
+        if (confirm("Выгрузка завершена! Начать новую проверку?")) {
+            location.reload();
+        }
+    }, 1000);
 }
 
 function backToStep1() { 
-document.getElementById('step-3-checklist').style.display = 'none';
-    document.getElementById('step-1-form').style.display = 'block';
-    }
+    document.getElementById('step-3-checklist').style.display = 'none'; 
+    document.getElementById('step-1-form').style.display = 'block'; 
+}
