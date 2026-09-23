@@ -16,7 +16,7 @@ window.addEventListener('offline', updateNetworkStatus);
 function updateNetworkStatus() {
     const indicator = document.getElementById('net-indicator');
     if (navigator.onLine) {
-        indicator.textContent = "🌐 Режим: Онлайн (Данные пишутся в облако)";
+        indicator.textContent = "🌐 Режим: Онлайн (Данные пишутся in облако)";
         indicator.className = "network-status online-mode";
         syncOfflineQueue();
         loadAnalyticsData(); 
@@ -180,7 +180,8 @@ function renderGroupedChecklist(data) {
         
         const blockDiv = document.createElement('div'); blockDiv.className = 'category-block';
         const headerDiv = document.createElement('div'); headerDiv.className = 'category-header'; headerDiv.id = 'cat-header-' + catIndex;
-        headerDiv.innerHTML = "<span>" + catIndex + ". " + catName + "</span><span class='category-counter' id='cat-counter-" + catIndex + "'>0 / " + questionsList.length + "</span>";
+        // Упрощено: Выводим статическое число вопросов в разделе без постоянных пересчетов
+        headerDiv.innerHTML = "<span>" + catIndex + ". " + catName + "</span><span class='category-counter'>Вопросов: " + questionsList.length + "</span>";
         
         const contentDiv = document.createElement('div'); contentDiv.className = 'category-content'; contentDiv.id = 'cat-content-' + catIndex;
         
@@ -206,10 +207,10 @@ function renderGroupedChecklist(data) {
             const btnRow = document.createElement('div'); btnRow.className = 'btn-row';
             
             const okBtn = document.createElement('button'); okBtn.type = 'button'; okBtn.className = 'btn btn-success'; okBtn.textContent = 'Соответствует';
-            okBtn.addEventListener('click', function() { setResult(q.id, 'Соответствует', q.question, blockName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
+            okBtn.addEventListener('click', function() { setResult(q.id, 'Соответствует', q.question, catName, q.normative); });
             
             const failBtn = document.createElement('button'); failBtn.type = 'button'; failBtn.className = 'btn btn-danger'; failBtn.textContent = 'Нарушение';
-            failBtn.addEventListener('click', function() { setResult(q.id, 'Нарушение', q.question, blockName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
+            failBtn.addEventListener('click', function() { setResult(q.id, 'Нарушение', q.question, catName, q.normative); });
             
             btnRow.appendChild(okBtn); btnRow.appendChild(failBtn); card.appendChild(btnRow);
             
@@ -256,7 +257,7 @@ function handlePhotoUpload(input, questionId) {
         reader.readAsDataURL(file);
     });
 }
-function setResult(id, status, question, category, normative, counterId, totalCount) {
+function setResult(id, status, question, category, normative) {
     let item = auditSession.results.find(function(r) { return r.id === id; });
     if (!item) {
         item = { id: id, question: question, category: category, normative: normative, status: status, comment: '', photos: [] };
@@ -269,13 +270,6 @@ function setResult(id, status, question, category, normative, counterId, totalCo
     if (photoArea) photoArea.style.display = status === 'Нарушение' ? 'block' : 'none';
     
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
-
-    const checkedInCategory = auditSession.results.filter(function(r) { return r.category === category; }).length;
-    const counterSpan = document.getElementById(counterId);
-    if (counterSpan) {
-        counterSpan.textContent = checkedInCategory + " / " + totalCount;
-        if (checkedInCategory === totalCount) counterSpan.className = "category-counter completed";
-    }
 }
 
 async function submitAuditWithOffline() {
@@ -336,6 +330,7 @@ async function syncOfflineQueue() {
     loadAnalyticsData();
 }
 
+// ИСПРАВЛЕННЫЙ МЕТОД: Принудительное скачивание Blob-файла на смартфонах без вывода на экран
 function downloadChecklistPdf() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
     
@@ -449,7 +444,7 @@ function downloadChecklistPdf() {
     }
 
     const printElement = document.getElementById('print-blank-zone');
-    printElement.style.display = 'block';
+    printElement.style.display = 'block'; 
 
     const pdfOptions = {
         margin: 10,
@@ -460,20 +455,31 @@ function downloadChecklistPdf() {
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    html2pdf().set(pdfOptions).from(printElement).save().then(function() {
+    // ГЕНЕРАЦИЯ ЧИСТОГО СКАЧИВАНИЯ БЕЗ СКРЫТЫХ КОНФЛИКТОВ RE-RENDER
+    html2pdf().set(pdfOptions).from(printElement).output('bloburl').then(function(blobUrl) {
         printElement.style.display = 'none';
         document.getElementById('pdf-btn').disabled = false;
-        if (confirm("Акт успешно скачан как PDF-файл! Очистить форму для новой проверки?")) {
-            location.reload();
-        }
-    }).catch(function(err) {
-        console.error(err);
-        printElement.style.display = 'none';
-        alert("Ошибка сборки PDF. Попробуйте нажать кнопку еще раз.");
-    });
-}
+        
+        // Создаем виртуальную нативную ссылку для скачивания файла телефоном
+        const downloadLink = document.createElement('a');
+        downloadLink.href = blobUrl;
+        downloadLink.download = pdfOptions.filename;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
 
-function backToStep1() { 
-document.getElementById('step-3-checklist').style.display = 'none';
+        setTimeout(function() {
+            if (confirm("Акт успешно сохранен как файл! Очистить форму для новой проверки?")) {
+                location.reload();
+            }
+        }, 1000);
+}).catch(function(err) {
+       console.error(err);
+        printElement.style.display = 'none';
+     alert("Ошибка сборки PDF. Попробуйте нажать кнопку еще раз.");
+        });
+    }
+function backToStep1() {
+    document.getElementById('step-3-checklist').style.display = 'none';
     document.getElementById('step-1-form').style.display = 'block';
-}
+    }
