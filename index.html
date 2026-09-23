@@ -30,7 +30,7 @@
         .photo-preview-grid { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .photo-preview-item { width: 70px; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
         
-        /* Исправленная галерея в PDF: Автовыравнивание вертикальных и горизонтальных кадров без обрезки */
+        /* Исправленная галерея в PDF без обрезки кадров */
         .pdf-photo-grid { 
             display: grid; 
             grid-template-columns: repeat(2, 1fr); 
@@ -47,7 +47,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 120mm; /* Оптимальный размер для размещения 4-х фото на листе А4 */
+            height: 120mm; 
         }
         .pdf-photo-container-img {
             flex-grow: 1;
@@ -61,7 +61,7 @@
         .pdf-photo-img { 
             max-width: 100%; 
             max-height: 95mm; 
-            object-fit: contain; /* Картинка масштабируется пропорционально и НЕ режется */
+            object-fit: contain; 
             display: block;
         }
         .pdf-photo-desc { font-size: 13px; font-weight: bold; color: #111; margin-top: 8px; padding-top: 5px; border-top: 1px solid #eee; }
@@ -135,7 +135,7 @@
                 <option value="">-- Выберите подрядчика --</option>
             </select>
             
-            <button onclick="startFullAudit()" class="btn btn-primary" style="margin-top: 15px;">Начать адуит (Загрузить чек-лист) 🚀</button>
+            <button onclick="startFullAudit()" class="btn btn-primary" style="margin-top: 15px;">Начать аудит (Загрузить чек-лист) 🚀</button>
         </div>
         
         <div id="error-display" class="error-log"></div>
@@ -160,9 +160,10 @@
     </div>
 </div>
 
+<!-- ВОЗВРАЩЕННАЯ ОФИЦИАЛЬНАЯ ТАБЛИЧНАЯ ПЕЧАТНАЯ ФОРМА -->
 <div id="print-blank-zone">
     <div style="text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 25px;">
-        <div style="margin: 0; color: #2c3e50; font-size: 22px; font-weight: bold; text-transform: uppercase;">АКТ ПРОВЕРКИ СОБЛЮДЕНИЯ ТРЕБОВАНИЙ ОТиПБ</div>
+        <div style="margin: 0; color: #2c3e50; font-size: 22px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">АКТ ПРОВЕРКИ СОБЛЮДЕНИЯ ТРЕБОВАНИЙ ОТиПБ</div>
     </div>
     
     <table style="width: 100%; margin-bottom: 30px; font-size: 14px; border-collapse: collapse;">
@@ -173,9 +174,22 @@
     </table>
     
     <div style="font-size: 16px; font-weight: bold; margin-bottom: 15px; color: #2c3e50;">Выявленные нарушения и замечания:</div>
-    <div id="p-violations" style="font-size: 14px; white-space: pre-wrap; line-height: 1.6; color: #000; margin-bottom: 30px;"></div>
     
-    <div style="margin-top: 50px; border-top: 1px solid #333; padding-top: 20px; display: flex; justify-content: space-between; font-size: 14px; page-break-inside: avoid;">
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+        <thead>
+            <tr style="background-color: #f2f2f2;">
+                <th style="border: 1px solid #ddd; padding: 10px; width: 5%; text-align: center; font-size: 14px;">№</th>
+                <th style="border: 1px solid #ddd; padding: 10px; width: 20%; text-align: left; font-size: 14px;">Раздел</th>
+                <th style="border: 1px solid #ddd; padding: 10px; width: 45%; text-align: left; font-size: 14px;">Требование безопасности</th>
+                <th style="border: 1px solid #ddd; padding: 10px; width: 30%; text-align: left; font-size: 14px;">Замечание инспектора</th>
+            </tr>
+        </thead>
+        <tbody id="p-violations-tbody">
+            <!-- Сюда JS добавит строки нарушений из последней рабочей версии -->
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 40px; padding-top: 20px; display: flex; justify-content: space-between; font-size: 14px; page-break-inside: avoid;">
         <div>Подпись проверяющего: _____________________</div>
         <div>Подпись представителя подрядчика: _____________________</div>
     </div>
