@@ -41,11 +41,7 @@ document.addEventListener("DOMContentLoaded", async function() {
         }
     } catch (e) {
         const cached = localStorage.getItem('cached_setup');
-        if (cached) {
-            populateSelects(JSON.parse(cached));
-        } else {
-            document.getElementById('setup-loading').innerHTML = "<b style='color:red;'>Первый запуск требует интернет-соединения.</b>";
-        }
+        if (cached) populateSelects(JSON.parse(cached));
     }
 });
 
@@ -210,10 +206,10 @@ function renderGroupedChecklist(data) {
             const btnRow = document.createElement('div'); btnRow.className = 'btn-row';
             
             const okBtn = document.createElement('button'); okBtn.type = 'button'; okBtn.className = 'btn btn-success'; okBtn.textContent = 'Соответствует';
-            okBtn.addEventListener('click', function() { setResult(q.id, 'Соответствует', q.question, catName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
+            okBtn.addEventListener('click', function() { setResult(q.id, 'Соответствует', q.question, blockName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
             
             const failBtn = document.createElement('button'); failBtn.type = 'button'; failBtn.className = 'btn btn-danger'; failBtn.textContent = 'Нарушение';
-            failBtn.addEventListener('click', function() { setResult(q.id, 'Нарушение', q.question, catName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
+            failBtn.addEventListener('click', function() { setResult(q.id, 'Нарушение', q.question, blockName, q.normative, 'cat-counter-' + catIndex, questionsList.length); });
             
             btnRow.appendChild(okBtn); btnRow.appendChild(failBtn); card.appendChild(btnRow);
             
@@ -417,7 +413,7 @@ function downloadChecklistPdf() {
             pageDiv.className = "pdf-page-break"; 
             
             const titleDiv = document.createElement('div');
-            titleDiv.style.marginTop = '20px'; titleDiv.style.fontSize = '16px'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.color = '#2c3e50'; titleDiv.style.borderBottom = '1px solid #2c3e50'; titleDiv.style.paddingBottom = '5px'; titleDiv.style.textTransform = 'uppercase';
+            titleDiv.style.marginTop = '20px'; titleDiv.style.fontSize = '14px'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.color = '#2c3e50'; titleDiv.style.borderBottom = '1px solid #2c3e50'; titleDiv.style.paddingBottom = '5px'; titleDiv.style.textTransform = 'uppercase';
             titleDiv.textContent = 'Приложение к Акту. Фотофиксация нарушений (Лист ' + (Math.floor(i/4) + 1) + ')';
             pageDiv.appendChild(titleDiv);
             
@@ -441,7 +437,7 @@ function downloadChecklistPdf() {
                 
                 const descDiv = document.createElement('div');
                 descDiv.className = "pdf-photo-desc";
-                descDiv.textContent = 'Фото к пункту №' + pData.index + ' ' + pData.category;
+                descDiv.textContent = 'Нарушение №' + pData.index + ' ' + pData.category;
                 photoCard.appendChild(descDiv);
                 
                 grid.appendChild(photoCard);
@@ -467,7 +463,7 @@ function downloadChecklistPdf() {
     html2pdf().set(pdfOptions).from(printElement).save().then(function() {
         printElement.style.display = 'none';
         document.getElementById('pdf-btn').disabled = false;
-        if (confirm("Акт сохранен на ваше устройство! Очистить форму для новой проверки?")) {
+        if (confirm("Акт успешно скачан как PDF-файл! Очистить форму для новой проверки?")) {
             location.reload();
         }
     }).catch(function(err) {
@@ -480,4 +476,4 @@ function downloadChecklistPdf() {
 function backToStep1() { 
 document.getElementById('step-3-checklist').style.display = 'none';
     document.getElementById('step-1-form').style.display = 'block';
-    }
+}
