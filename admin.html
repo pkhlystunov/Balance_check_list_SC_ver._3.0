@@ -3,23 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель Аналитики и Мониторинга ОТиПБ</title>
-    <!-- Подключение стабильного графического ядра Chart.js -->
-    <script src="https://jsdelivr.net"></script>
-    <link rel="stylesheet" href="admin-style.css">
+    <title>Ситуационный центр ОТиПБ</title>
+    <style>
+        :root { 
+            --primary: #2c3e50; 
+            --success: #2ecc71; 
+            --danger: #e74c3c; 
+            --bg: #f4f6f7; 
+            --gray-light: #f8f9f9;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; 
+            background: var(--bg); 
+            margin: 0; 
+            padding: 20px 20px 80px 20px; /* Отступ снизу под мобильные кнопки */
+            color: #333; 
+        }
+        .admin-container { max-width: 1100px; margin: 0 auto; }
+        
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: #fff; 
+            padding: 15px 25px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            margin-bottom: 20px; 
+        }
+        .header h1 { margin: 0; font-size: 20px; color: var(--primary); }
+        .sync-indicator { font-size: 13px; color: #d35400; font-weight: bold; }
+
+        /* СКВОЗНЫЕ ФИЛЬТРЫ */
+        .filter-bar { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 15px; 
+            background: #eaf2f8; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin-bottom: 25px; 
+        }
+        .filter-bar label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #555; }
+        .filter-bar input, .filter-bar select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 13px; }
+
+        /* ТАБ-КОНТЕНТ */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ВЫДЕЛЕННЫЕ ВИДЖЕТЫ АНАЛИТИКИ */
+        .widgets-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 25px; }
+        .widget-card { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 6px; text-align: center; }
+        .widget-card h3 { margin: 0 0 5px 0; font-size: 14px; color: #7f8c8d; }
+        .widget-card div { font-size: 28px; font-weight: bold; }
+        .widget-primary { border-top: 4px solid var(--primary); }
+        .widget-danger { border-top: 4px solid var(--danger); }
+
+        /* НАТИВНАЯ ГИСТОГРАММА НА CSS БЕЗ СБОЕВ */
+        .chart-box { background: #fff; padding: 20px; border: 1px solid #eee; border-radius: 6px; }
+        .native-chart-container { display: flex; flex-direction: column; gap: 14px; margin-top: 15px; }
+        .chart-row { display: flex; align-items: center; font-size: 13px; }
+        .chart-label { width: 35%; font-weight: bold; color: #34495e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px; }
+        .chart-bar-wrapper { width: 55%; background: #f0f3f4; border-radius: 4px; overflow: hidden; height: 24px; }
+        .chart-bar-fill { background: #e74c3c; height: 100%; transition: width 0.3s ease; border-radius: 4px; }
+        .chart-value { width: 10%; text-align: right; font-weight: bold; color: #c0392b; padding-left: 10px; white-space: nowrap; }
+
+        /* РЕЕСТР ПРЕДПИСАНИЙ */
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; }
+        th { background: var(--gray-light); color: var(--primary); }
+
+        /* АДАПТИВНОЕ МЕНЮ НАВИГАЦИИ (ПАНЕЛЬ ДЛЯ ПК) */
+        .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
+        .tab-btn { 
+            padding: 12px 25px; border: none; background: #bdc3c7; color: #fff; 
+            font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 14px; width: 100%;
+        }
+        .tab-btn.active { background: var(--primary); }
+
+        /* МОБИЛЬНАЯ ВЕРСТКА (ЭКРАНЫ МЕНЕЕ 768px) */
+        @media (max-width: 768px) {
+            body { padding: 10px 10px 90px 10px; }
+            .header { flex-direction: column; gap: 8px; text-align: center; padding: 12px; }
+            .filter-bar { grid-template-columns: 1fr; gap: 10px; padding: 10px; }
+            .widgets-grid { grid-template-columns: 1fr; gap: 10px; }
+            .chart-row { flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+            .chart-label { width: 100%; padding: 0; }
+            .chart-bar-wrapper { width: 100%; height: 18px; }
+            .chart-value { width: 100%; text-align: left; padding: 0; margin-top: 2px; }
+            th, td { padding: 8px; font-size: 13px; }
+            
+            /* КРУПНЫЕ КНОПКИ ВНИЗУ ЭКРАНА ДЛЯ СМАРТФОНОВ */
+            .tabs { 
+                position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; 
+                box-shadow: 0 -3px 10px rgba(0,0,0,0.1); margin: 0; padding: 12px; 
+                display: grid; grid-template-columns: 1fr 1fr; gap: 10px; box-sizing: border-box; z-index: 9999;
+            }
+            .tab-btn { padding: 15px 10px; font-size: 15px; border-radius: 8px; text-align: center; }
+        }
+    </style>
 </head>
 <body>
 
 <div class="admin-container">
     <div class="header">
-        <h1>📊 Ситуационный центр ОТиПБ (Аналитика)</h1>
-        <div id="sync-status" class="sync-indicator">● Мониторинг активен</div>
+        <h1>Ситуационный центр ОТиПБ</h1>
+        <div id="sync-status" class="sync-indicator">⏳ Подключение...</div>
     </div>
 
-    <!-- Блок сквозной фильтрации за любой период или по любому объекту -->
+    <!-- Общие фильтры по датам, объектам и ПО -->
     <div class="filter-bar">
         <div>
-            <label for="f-object">Объект строительства:</label>
+            <label for="f-object">Объект контроля:</label>
             <select id="f-object" onchange="applyFilters()">
                 <option value="Все">-- Все объекты --</option>
             </select>
@@ -31,56 +128,65 @@
             </select>
         </div>
         <div>
-            <label for="f-start">Выбрать период с:</label>
+            <label for="f-start">Дата с:</label>
             <input type="date" id="f-start" onchange="applyFilters()">
         </div>
         <div>
-            <label for="f-end">Выбрать период по:</label>
+            <label for="f-end">Дата по:</label>
             <input type="date" id="f-end" onchange="applyFilters()">
         </div>
     </div>
 
-    <!-- Информационные виджеты экспресс-статистики -->
-    <div class="widgets-grid">
-        <div class="widget-card widget-primary">
-            <h3>Проведено инспекций за период</h3>
-            <div id="w-checks">0</div>
+    <!-- ВКЛАДКА 1: ОПЕРАТИВНЫЙ РЕЕСТР ПРЕДПИСАНИЙ -->
+    <div id="registry-tab" class="tab-content active">
+        <div class="card" style="border-left: 6px solid var(--primary);">
+            <h3 style="margin-top: 0; color: var(--primary);">📋 Журнал зафиксированных замечаний</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 12%;">Дата</th>
+                            <th style="width: 18%;">Объект контроля</th>
+                            <th style="width: 20%;">Подрядная организация</th>
+                            <th style="width: 50%;">Подробное описание замечаний инспектора</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registry-tbody">
+                        <tr><td colspan="4" style="text-align:center; padding:20px; font-style:italic;">⏳ Синхронизация реестров...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-        <div class="widget-card widget-danger">
-            <h3>Выявлено нарушений за период</h3>
-            <div id="w-violations">0</div>
-        </div>
-    </div>
-    
-    <!-- Окно интерактивной гистограммы -->
-    <div class="chart-box" style="margin-bottom: 30px;">
-        <h3 style="margin-top:0; font-size:16px; color:#2c3e50; text-align: left;">Гистограмма: Распределение нарушений по подрядным организациям</h3>
-        <canvas id="violationsChart"></canvas>
     </div>
 
-    <!-- Журнал зарегистрированных дефектов инспекторов -->
-    <div class="card primary-border" style="background: #fff; padding: 20px; border-radius: 8px;">
-        <h3 style="margin-top: 0; text-align: left; color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 8px;">📋 Журнал зафиксированных замечаний</h3>
-        <div class="table-wrapper">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 12%;">Дата</th>
-                        <th style="width: 18%;">Объект контроля</th>
-                        <th style="width: 20%;">Подрядная организация</th>
-                        <th style="width: 50%;">Подробное описание замечаний инспектора</th>
-                    </tr>
-                </thead>
-                <tbody id="registry-tbody">
-                    <tr><td colspan="4" style="text-align:center; padding:30px; font-style:italic; color:#666;">⏳ Синхронизация с сервером Google и построение отчетов...</td></tr>
-                </tbody>
-            </table>
+    <!-- ВКЛАДКА 2: МОДУЛЬ АНАЛИТИКИ И НАТИВНЫХ ГИСТОГРАММ -->
+    <div id="analytics-tab" class="tab-content">
+        <div class="widgets-grid">
+            <div class="widget-card widget-primary">
+                <h3>Проведено инспекций за период</h3>
+                <div id="w-checks">0</div>
+            </div>
+            <div class="widget-card widget-danger">
+                <h3>Выявлено нарушений за период</h3>
+                <div id="w-violations">0</div>
+            </div>
         </div>
+        
+        <div class="chart-box">
+            <h3 style="margin: 0; font-size: 15px; color: var(--primary);">📊 Распределение нарушений по подрядным организациям</h3>
+            <div id="native-chart-body" class="native-chart-container">
+                <!-- Сюда JS мгновенно выведет полосы графиков -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ДВЕ АКТИВНЫЕ КНОПКИ ПЕРЕКЛЮЧЕНИЯ (НА ПК - СВЕРХУ/СНИЗУ, НА ТЕЛЕФОНЕ - СТРОГО ВНИЗУ ЭКРАНА) -->
+    <div class="tabs">
+        <button class="tab-btn active" id="btn-registry" onclick="switchTab('registry-tab')">📋 Реестр предписаний</button>
+        <button class="tab-btn" id="btn-analytics" onclick="switchTab('analytics-tab')">📊 Аналитика и Графики</button>
     </div>
 </div>
 
-<!-- Запуск аналитических модулей -->
-<script src="admin-charts.js"></script>
 <script src="admin-app.js"></script>
 </body>
 </html>
