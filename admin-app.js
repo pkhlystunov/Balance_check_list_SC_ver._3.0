@@ -1,4 +1,4 @@
-// Ядро ситуационного центра ОТиПБ
+// Ядро ситуационного центра ОТиПБ v12. Защита от CORS ограничений.
 const API_URL = "https://script.google.com/macros/s/AKfycbzc8Bs2D0WvwjlXQBACVEk7QThoCYilHv28mj8EqPtkFsAqBAGHC6dLtcDP98pc6Bcy_Q/exec";
 
 let rawData = [];
@@ -12,40 +12,55 @@ function switchTab(tabId) {
         document.getElementById('btn-registry').classList.add('active');
     } else {
         document.getElementById('btn-analytics').classList.add('active');
-        // Принудительно обновляем холст графика при переходе на вкладку аналитики
         applyFilters();
     }
 }
 
-async function loadData() {
+// ИСПОЛЬЗУЕМ НЕУЯЗВИМЫЙ ДЛЯ CORS МЕТОД JSONP ТЕГОВ
+function loadData() {
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "⏳ Загрузка базы данных...";
+    statusText.textContent = "⏳ Синхронизация с реестрами Google...";
     statusText.style.color = "#d35400";
+
+    // Создаем уникальное имя фоновой функции
+    const callbackName = "google_script_callback_" + Math.round(Math.random() * 100000);
     
-    try {
-        const response = await fetch(API_URL + "?action=getAdminData");
-        const res = await response.json();
-        if (res.success) {
+    // Регистрируем глобальный обработчик ответа
+    window[callbackName] = function(res) {
+        if (res && res.success) {
             rawData = res.data;
             buildFilterOptions();
             applyFilters();
             statusText.textContent = "● База данных подключена";
             statusText.style.color = "#27ae60";
         } else {
-            throw new Error("Бэкенд вернул success:false");
+            statusText.textContent = "❌ Ошибка обработки данных.";
+            statusText.style.color = "red";
         }
-    } catch (e) {
-        console.error("Ошибка загрузки:", e);
-        statusText.textContent = "❌ Ошибка синхронизации. Проверьте интернет.";
+        // Удаляем временный тег скрипта из памяти после завершения
+        delete window[callbackName];
+        const scriptTag = document.getElementById(callbackName);
+        if (scriptTag) scriptTag.parentNode.removeChild(scriptTag);
+    };
+
+    // Инжектируем неблокируемый CORS-запрос в заголовок страницы
+    const script = document.createElement('script');
+    script.id = callbackName;
+    script.src = API_URL + "?action=getAdminData&callback=" + callbackName;
+    script.async = true;
+    
+    script.onerror = function() {
+        statusText.textContent = "❌ Ошибка сети CORS. Перевыпустите Apps Script.";
         statusText.style.color = "red";
-    }
+    };
+    
+    document.head.appendChild(script);
 }
 
 function buildFilterOptions() {
     const objSelect = document.getElementById('f-object');
     const contrSelect = document.getElementById('f-contractor');
     
-    // Очищаем старые списки фильтров кроме дефолтных
     objSelect.innerHTML = '<option value="Все">-- Все объекты --</option>';
     contrSelect.innerHTML = '<option value="Все">-- Все подрядчики --</option>';
 
@@ -81,7 +96,6 @@ function applyFilters() {
 
     renderRegistry(filtered);
     
-    // Вызываем безопасную отрисовку графиков из admin-charts.js
     if (typeof updateAnalyticsWidgets === "function") {
         updateAnalyticsWidgets(filtered);
     }
@@ -129,6 +143,7 @@ function renderRegistry(data) {
     });
 }
 
+// НАДЕЖНОЕ ИЗМЕНЕНИЕ СТАТУСА ЧЕРЕЗ ТЕКСТОВЫЙ РЕЖИМ ОТПРАВКИ БЕЗ ПРОВЕРОК CORS В БРАУЗЕРЕ
 async function closeViolation(rowId) {
     if (!confirm("Вы подтверждаете устранение нарушений по данному Акту? Предписание будет закрыто.")) return;
     
@@ -136,15 +151,16 @@ async function closeViolation(rowId) {
     statusText.textContent = "⏳ Сохранение статуса в Google...";
     statusText.style.color = "#d35400";
     
-    try {
-        // Локально сразу меняем статус, чтобы интерфейс мгновенно отработал (Optimistic UI)
-        const record = rawData.find(function(r) { return r.rowId === rowId; });
-        if (record) record.status = "Закрыт";
-        applyFilters();
+    // Мгновенный отклик интерфейса (Optimistic UI)
+    const record = rawData.find(function(r) { return r.rowId === rowId; });
+    if (record) record.status = "Закрыт";
+    applyFilters();
 
-        // Отправляем запрос на сервер в фоновом режиме
+    try {
+        // Режим отправки plain/text маскирует запрос под стандартную форму и пробивает CORS
         await fetch(API_URL, {
             method: "POST",
+            mode: "no-cors", 
             body: JSON.stringify({ action: "updateStatus", rowId: rowId, newStatus: "Закрыт" }),
             headers: { 'Content-Type': 'text/plain' }
         });
@@ -152,9 +168,7 @@ async function closeViolation(rowId) {
         statusText.textContent = "● Данные синхронизированы";
         statusText.style.color = "#27ae60";
     } catch (e) {
-        console.error("Ошибка при закрытии:", e);
-        // В случае реального обрыва сети возвращаем статус назад
-        statusText.textContent = "⚠️ Ошибка сети. Статус сохранен локально.";
+        statusText.textContent = "⚠️ Ошибка сети. Изменение сохранено локально.";
         statusText.style.color = "#e67e22";
     }
 }
