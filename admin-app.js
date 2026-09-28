@@ -3,14 +3,27 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzc8Bs2D0WvwjlXQBACVEk7
 
 let rawData = [];
 
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+    document.querySelectorAll('.tab-btn').forEach(function(el) { el.classList.remove('active'); });
+    
+    document.getElementById(tabId).classList.add('active');
+    if (tabId === 'registry-tab') {
+        document.getElementById('btn-registry').classList.add('active');
+    } else {
+        document.getElementById('btn-analytics').classList.add('active');
+        applyFilters(); 
+    }
+}
+
 async function loadData() {
     const statusText = document.getElementById('sync-status');
     statusText.textContent = "⏳ Синхронизация с сервером Google...";
     statusText.style.color = "#d35400";
     
     try {
-        // Вызываем проверенный, стабильный метод получения истории проверок с автоматическим редиректом
-        const response = await fetch(API_URL + "?action=getAnalytics", { method: "GET", redirect: "follow" });
+        // Запрашиваем историю с флагом &client=admin для активации TEXT-моста против CORS
+        const response = await fetch(API_URL + "?action=getAnalytics&client=admin", { method: "GET", redirect: "follow" });
         const res = await response.json();
         
         if (res && res.success) {
@@ -20,11 +33,11 @@ async function loadData() {
             statusText.textContent = "● Мониторинг активен";
             statusText.style.color = "#27ae60";
         } else {
-            throw new Error("Неверный формат ответа бэкенда");
+            throw new Error("Бэкенд вернул ошибку выполнения");
         }
     } catch (e) {
         console.error("Ошибка загрузки аналитики:", e);
-        statusText.textContent = "❌ Ошибка сети. Проверьте деплой бэкенда.";
+        statusText.textContent = "❌ Ошибка синхронизации. Проверьте деплой.";
         statusText.style.color = "red";
     }
 }
@@ -70,7 +83,6 @@ function applyFilters() {
 
     renderRegistry(filtered);
     
-    // Передаем отфильтрованные данные в графический модуль admin-charts.js
     if (typeof updateAnalyticsWidgets === "function") {
         updateAnalyticsWidgets(filtered);
     }
@@ -85,7 +97,6 @@ function renderRegistry(data) {
         return;
     }
 
-    // Выводим журнал от самых свежих проверок к старым
     const copyData = data.slice().reverse();
     copyData.forEach(function(r) {
         const tr = document.createElement('tr');
@@ -96,11 +107,10 @@ function renderRegistry(data) {
         tr.innerHTML = "<td>" + formattedDate + "</td>" +
                        "<td><b>" + r.object + "</b></td>" +
                        "<td>" + r.contractor + "</td>" +
-                       "<td style='white-space: pre-wrap; font-size:13px; line-height:1.4; color:#2c3e50;'>" + (r.text || "Нарушений не выявлено") + "</td>";
+                       "<td style='white-space: pre-wrap; font-size:13px; line-height:1.4; color:#2c3e50;'> " + (r.text || "Нарушений не выявлено") + "</td>";
         
         tbody.appendChild(tr);
     });
 }
 
-// Запуск загрузки данных при старте панели аналитики
 window.onload = loadData;
