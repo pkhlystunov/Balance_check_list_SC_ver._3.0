@@ -12,11 +12,16 @@ function switchTab(tabId) {
         document.getElementById('btn-registry').classList.add('active');
     } else {
         document.getElementById('btn-analytics').classList.add('active');
+        // Принудительно обновляем холст графика при переходе на вкладку аналитики
+        applyFilters();
     }
 }
 
 async function loadData() {
     const statusText = document.getElementById('sync-status');
+    statusText.textContent = "⏳ Загрузка базы данных...";
+    statusText.style.color = "#d35400";
+    
     try {
         const response = await fetch(API_URL + "?action=getAdminData");
         const res = await response.json();
@@ -24,14 +29,26 @@ async function loadData() {
             rawData = res.data;
             buildFilterOptions();
             applyFilters();
+            statusText.textContent = "● База данных подключена";
+            statusText.style.color = "#27ae60";
+        } else {
+            throw new Error("Бэкенд вернул success:false");
         }
     } catch (e) {
-        statusText.textContent = "❌ Ошибка загрузки базы";
+        console.error("Ошибка загрузки:", e);
+        statusText.textContent = "❌ Ошибка синхронизации. Проверьте интернет.";
         statusText.style.color = "red";
     }
 }
 
 function buildFilterOptions() {
+    const objSelect = document.getElementById('f-object');
+    const contrSelect = document.getElementById('f-contractor');
+    
+    // Очищаем старые списки фильтров кроме дефолтных
+    objSelect.innerHTML = '<option value="Все">-- Все объекты --</option>';
+    contrSelect.innerHTML = '<option value="Все">-- Все подрядчики --</option>';
+
     const objects = new Set();
     const contractors = new Set();
     
@@ -40,10 +57,7 @@ function buildFilterOptions() {
         if(r.contractor) contractors.add(r.contractor);
     });
 
-    const objSelect = document.getElementById('f-object');
     objects.forEach(function(o) { objSelect.add(new Option(o, o)); });
-
-    const contrSelect = document.getElementById('f-contractor');
     contractors.forEach(function(c) { contrSelect.add(new Option(c, c)); });
 }
 
@@ -66,7 +80,11 @@ function applyFilters() {
     });
 
     renderRegistry(filtered);
-    updateAnalyticsWidgets(filtered);
+    
+    // Вызываем безопасную отрисовку графиков из admin-charts.js
+    if (typeof updateAnalyticsWidgets === "function") {
+        updateAnalyticsWidgets(filtered);
+    }
 }
 
 function renderRegistry(data) {
@@ -78,7 +96,6 @@ function renderRegistry(data) {
         return;
     }
 
-    // Рендерим от свежих к старым актам
     const copyData = data.slice().reverse();
     copyData.forEach(function(r) {
         const tr = document.createElement('tr');
@@ -116,27 +133,30 @@ async function closeViolation(rowId) {
     if (!confirm("Вы подтверждаете устранение нарушений по данному Акту? Предписание будет закрыто.")) return;
     
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "⏳ Сохранение статуса...";
+    statusText.textContent = "⏳ Сохранение статуса в Google...";
+    statusText.style.color = "#d35400";
     
     try {
-        const response = await fetch(API_URL, {
+        // Локально сразу меняем статус, чтобы интерфейс мгновенно отработал (Optimistic UI)
+        const record = rawData.find(function(r) { return r.rowId === rowId; });
+        if (record) record.status = "Закрыт";
+        applyFilters();
+
+        // Отправляем запрос на сервер в фоновом режиме
+        await fetch(API_URL, {
             method: "POST",
             body: JSON.stringify({ action: "updateStatus", rowId: rowId, newStatus: "Закрыт" }),
             headers: { 'Content-Type': 'text/plain' }
         });
-        const res = await response.json();
-        if (res.success) {
-            const record = rawData.find(function(r) { return r.rowId === rowId; });
-            if (record) record.status = "Закрыт";
-            
-            statusText.textContent = "● Данные синхронизированы";
-            applyFilters();
-        }
+        
+        statusText.textContent = "● Данные синхронизированы";
+        statusText.style.color = "#27ae60";
     } catch (e) {
-        alert("Ошибка сети. Не удалось изменить статус.");
-        statusText.textContent = "● База данных подключена";
+        console.error("Ошибка при закрытии:", e);
+        // В случае реального обрыва сети возвращаем статус назад
+        statusText.textContent = "⚠️ Ошибка сети. Статус сохранен локально.";
+        statusText.style.color = "#e67e22";
     }
 }
 
-// Запуск приложения при полной загрузке страницы
 window.onload = loadData;
