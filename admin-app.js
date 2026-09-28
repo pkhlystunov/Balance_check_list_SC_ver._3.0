@@ -26,7 +26,7 @@ async function loadData() {
     const tbody = document.getElementById('registry-tbody');
     
     // Ссылка на опубликованный CSV-поток листа реестра проверок
-    const csvUrl = "https://google.com" + SPREADSHEET_ID + "/pub?output=csv&gid=1114510065"; 
+    const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJG1tv_yvM-afCnSJxXGuThop6hapnyTWZ9lBufGHwjpPjfbpcCKkoMEo7nAFV1sVJJJ2fIEajpUJd/pubhtml" + SPREADSHEET_ID + "/pub?output=csv&gid=564069897"; 
     // Примечание: Если gid вашего листа "7_Реестр_Проверок" отличается от стандартного, 
     // вы можете использовать упрощенную ссылку:
     const altCsvUrl = "https://google.com" + SPREADSHEET_ID + "/pub?output=csv";
