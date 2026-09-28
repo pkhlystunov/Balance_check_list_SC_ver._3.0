@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель управления и Аналитики ОТиПБ</title>
-    <!-- Надежное подключение проверенной версии Chart.js -->
     <script src="https://jsdelivr.net"></script>
     <link rel="stylesheet" href="admin-style.css">
 </head>
@@ -12,17 +11,15 @@
 
 <div class="admin-container">
     <div class="header">
-        <h1>🛠️ Ситуационный центр ОТиПБ</h1>
+        <h1>Ситуационный центр ОТиПБ (Управление)</h1>
         <div id="sync-status" class="sync-indicator">● База данных подключена</div>
     </div>
 
-    <!-- Переключатели вкладок -->
     <div class="tabs">
         <button class="tab-btn active" id="btn-registry" onclick="switchTab('registry-tab')">📋 Реестр предписаний</button>
         <button class="tab-btn" id="btn-analytics" onclick="switchTab('analytics-tab')">📊 Гистограммы и аналитика</button>
     </div>
 
-    <!-- Блок общих фильтров -->
     <div class="filter-bar">
         <div>
             <label for="f-object">Объект контроля:</label>
@@ -46,7 +43,6 @@
         </div>
     </div>
 
-    <!-- ВКЛАДКА 1: РЕЕСТР ПРЕДПИСАНИЙ -->
     <div id="registry-tab" class="tab-content active">
         <div class="table-wrapper">
             <table>
@@ -61,13 +57,12 @@
                     </tr>
                 </thead>
                 <tbody id="registry-tbody">
-                    <tr><td colspan="6" style="text-align:center; padding:30px; font-style:italic; color:#666;">⏳ Загрузка оперативного реестра...</td></tr>
+                    <tr><td colspan="6" style="text-align:center; padding:30px; font-style:italic; color:#666;">Загрузка оперативного реестра...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- ВКЛАДКА 2: АНАЛИТИКА С ГИСТОГРАММОЙ -->
     <div id="analytics-tab" class="tab-content">
         <div class="widgets-grid">
             <div class="widget-card widget-primary">
@@ -87,7 +82,6 @@
     </div>
 </div>
 
-<!-- ИСПРАВЛЕНО: Сначала грузим графическое ядро, затем запускаем логику приложения -->
 <script src="admin-charts.js"></script>
 <script src="admin-app.js"></script>
 </body>
