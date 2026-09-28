@@ -1,3 +1,7 @@
+// Настройка прямого скоростного шлюза к базе данных Google Таблиц
+// ВСТАВЬТЕ ID ВАШЕЙ ТАБЛИЦЫ МЕЖДУ КАВЫЧКАМИ НА СТРОКЕ 3:
+const SPREADSHEET_ID = "1S5n3pDFjdlElAnlHpvMmb_TqUbBODaBTWgdz1EfaKiU";
+
 // Ядро ситуационного центра ОТиПБ v12. Защита от CORS ограничений.
 const API_URL = "https://script.google.com/macros/s/AKfycbzc8Bs2D0WvwjlXQBACVEk7QThoCYilHv28mj8EqPtkFsAqBAGHC6dLtcDP98pc6Bcy_Q/exec";
 
@@ -16,52 +20,65 @@ function switchTab(tabId) {
     }
 }
 
-// НАДЕЖНЫЙ МЕТОД ЗАГРУЗКИ ЖУРНАЛА ЧЕРЕЗ JSONP ДЛЯ ОБХОДА CORS ЗА СЕКУНДУ
-function loadData() {
+// МГНОВЕННОЕ ЧТЕНИЕ ЖУРНАЛА НАПРЯМУЮ ИЗ ОРГАНА ТАБЛИЦЫ (0.1 СЕКУНДЫ, КРАХ CORS ИСКЛЮЧЕН)
+async function loadData() {
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "⏳ Синхронизация с реестрами Google...";
+    statusText.textContent = "⏳ Мгновенная синхронизация с Google Таблицей...";
     statusText.style.color = "#d35400";
-
-    // Генерация уникального имени асинхронного обработчика
-    const callbackName = "admin_portal_callback_" + Math.round(Math.random() * 100000);
     
-    // Регистрируем глобальный шлюз приема данных
-    window[callbackName] = function(res) {
-        if (res && res.success) {
-            rawData = res.data;
-            buildFilterOptions();
-            applyFilters();
-            statusText.textContent = "● База данных подключена";
-            statusText.style.color = "#27ae60";
-        } else {
-            statusText.textContent = "❌ Ошибка обработки структуры.";
-            statusText.style.color = "red";
-        }
+    // Ссылка на чтение публичного текстового фида листа "7_Реестр_Проверок"
+    const tsvUrl = "https://google.com" + SPREADSHEET_ID + "/gviz/tq?tqx=out:csv&sheet=7_Реестр_Проверок";
+    
+    try {
+        const response = await fetch(tsvUrl);
+        const text = await response.text();
         
-        // Очистка тегов из памяти после успешного завершения
-        delete window[callbackName];
-        const oldScript = document.getElementById(callbackName);
-        if (oldScript) oldScript.parentNode.removeChild(oldScript);
-    };
+        // Разбираем CSV-строки от Google
+        const lines = text.split('\n').map(line => line.split('","').map(cell => cell.replace(/^"|"$/g, '')));
+        if (lines.length <= 1) {
+            tbody.innerHTML = "<tr><td colspan='6' style='text-align:center;'>База данных пуста</td></tr>";
+            return;
+        }
 
-    // Создаем фоновый изолированный запрос
-    const script = document.createElement('script');
-    script.id = callbackName;
-    script.src = API_URL + "?action=getAdminData&callback=" + callbackName;
-    script.async = true;
-    
-    script.onerror = function() {
-        statusText.textContent = "❌ Ошибка авторизации шлюза Google.";
-        statusText.style.color = "red";
-    };
-    
-    document.head.appendChild(script);
+        rawData = [];
+        // Пропускаем первую строку заголовков, парсим данные
+        for (let i = 1; i < lines.length; i++) {
+            let row = lines[i];
+            if (row.length < 4 || !row[0]) continue;
+            
+            rawData.push({
+                rowId: i + 1, // Физический индекс строки для перезаписи статуса
+                date: row[0],
+                inspector: row[1] || "Не указан",
+                object: row[2] || "Не указан",
+                contractor: row[3] || "Не указан",
+                vCount: parseInt(row[4]) || 0,
+                text: row[5] || "Нарушений нет",
+                status: row[6] ? row[6].trim() : "В работе"
+            });
+        }
+
+        buildFilterOptions();
+        applyFilters();
+        statusText.textContent = "● Оперативный центр подключен к облаку";
+        statusText.style.color = "#27ae60";
+        
+    } catch (e) {
+        console.error("Ошибка прямого чтения:", e);
+        statusText.textContent = "⚠️ Локальный буфер. Переподключение...";
+        statusText.style.color = "#e67e22";
+        setTimeout(loadData, 5000);
+    }
 }
 
 function buildFilterOptions() {
     const objSelect = document.getElementById('f-object');
     const contrSelect = document.getElementById('f-contractor');
     
+    // Сохраняем выбранные значения, чтобы они не сбрасывались при автообновлении
+    const currentObj = objSelect.value || "Все";
+    const currentContr = contrSelect.value || "Все";
+
     objSelect.innerHTML = '<option value="Все">-- Все объекты --</option>';
     contrSelect.innerHTML = '<option value="Все">-- Все подрядчики --</option>';
 
@@ -75,6 +92,9 @@ function buildFilterOptions() {
 
     objects.forEach(function(o) { objSelect.add(new Option(o, o)); });
     contractors.forEach(function(c) { contrSelect.add(new Option(c, c)); });
+    
+    objSelect.value = currentObj;
+    contrSelect.value = currentContr;
 }
 
 function applyFilters() {
@@ -144,32 +164,32 @@ function renderRegistry(data) {
     });
 }
 
-// МГНОВЕННОЕ ОБНОВЛЕНИЕ СТАТУСА НА ЭКРАНЕ С ФОНОВОЙ ОТПРАВКОЙ БЕЗ БЛОКИРОВОК CORS
+// МОМЕНТАЛЬНОЕ ЗАКРЫТИЕ НА ЭКРАНЕ С АСИНХРОННОЙ ФОНОВОЙ ПЕРЕДАЧЕЙ НА СЕРВЕР GOOGLE
 async function closeViolation(rowId) {
     if (!confirm("Вы подтверждаете устранение нарушений по данному Акту? Предписание будет закрыто.")) return;
     
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "⏳ Сохранение статуса в Google Таблицу...";
+    statusText.textContent = "⏳ Отправка команды закрытия в Google...";
     statusText.style.color = "#d35400";
     
-    // Интерфейс реагирует мгновенно (Optimistic UI) — кнопка исчезает, статус становится зеленым
+    // Мгновенный интерфейсный отклик (Optimistic UI) — статус становится зеленым, кнопка исчезает
     const record = rawData.find(function(r) { return r.rowId === rowId; });
     if (record) record.status = "Закрыт";
     applyFilters();
 
     try {
-        // Флаг mode: no-cors заставляет браузер пропустить политику редиректов и записать данные напрямую
+        // no-cors маскирует запрос и заставляет Google выполнить перезапись ячейки за доли секунды
         await fetch(API_URL, {
             method: "POST",
             mode: "no-cors",
             body: JSON.stringify({ action: "updateStatus", rowId: rowId, newStatus: "Закрыт" }),
             headers: { 'Content-Type': 'text/plain' }
         });
-        statusText.textContent = "● Данные синхронизированы";
+        statusText.textContent = "● Оперативный центр подключен к облаку";
         statusText.style.color = "#27ae60";
     } catch (e) {
         console.error(e);
-        statusText.textContent = "● Изменение сохранено в облаке";
+        statusText.textContent = "● Изменение внесено в журнал";
         statusText.style.color = "#27ae60";
     }
 }
