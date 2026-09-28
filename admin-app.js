@@ -12,17 +12,13 @@ function switchTab(tabId) {
         document.getElementById('btn-registry').classList.add('active');
     } else {
         document.getElementById('btn-analytics').classList.add('active');
-        applyFilters(); 
     }
+    applyFilters(); // Пересчитываем данные и графики при переключении
 }
 
 async function loadData() {
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "⏳ Синхронизация с сервером Google...";
-    statusText.style.color = "#d35400";
-    
     try {
-        // Запрашиваем историю с флагом &client=admin для активации TEXT-моста против CORS
         const response = await fetch(API_URL + "?action=getAnalytics&client=admin", { method: "GET", redirect: "follow" });
         const res = await response.json();
         
@@ -30,14 +26,12 @@ async function loadData() {
             rawData = res.data;
             buildFilterOptions();
             applyFilters();
-            statusText.textContent = "● Мониторинг активен";
+            statusText.textContent = "● Оперативный мониторинг активен";
             statusText.style.color = "#27ae60";
-        } else {
-            throw new Error("Бэкенд вернул ошибку выполнения");
         }
     } catch (e) {
-        console.error("Ошибка загрузки аналитики:", e);
-        statusText.textContent = "❌ Ошибка синхронизации. Проверьте деплой.";
+        console.error(e);
+        statusText.textContent = "❌ Ошибка синхронизации шлюза";
         statusText.style.color = "red";
     }
 }
@@ -82,10 +76,7 @@ function applyFilters() {
     });
 
     renderRegistry(filtered);
-    
-    if (typeof updateAnalyticsWidgets === "function") {
-        updateAnalyticsWidgets(filtered);
-    }
+    renderNativeChart(filtered);
 }
 
 function renderRegistry(data) {
@@ -100,16 +91,61 @@ function renderRegistry(data) {
     const copyData = data.slice().reverse();
     copyData.forEach(function(r) {
         const tr = document.createElement('tr');
-        
         let formattedDate = "Акт";
         try { if(r.date) formattedDate = new Date(r.date).toLocaleDateString('ru-RU'); } catch(e) {}
 
         tr.innerHTML = "<td>" + formattedDate + "</td>" +
                        "<td><b>" + r.object + "</b></td>" +
                        "<td>" + r.contractor + "</td>" +
-                       "<td style='white-space: pre-wrap; font-size:13px; line-height:1.4; color:#2c3e50;'> " + (r.text || "Нарушений не выявлено") + "</td>";
-        
+                       "<td style='white-space: pre-wrap; font-size:13px; line-height:1.4; color:#2c3e50;'>" + (r.text || "Нарушений не выявлено") + "</td>";
         tbody.appendChild(tr);
+    });
+}
+
+// ВСТРОЕННЫЙ СВЕРХБЫСТРЫЙ РЕНДЕРЕР ГИСТОГРАММ НА CSS
+function renderNativeChart(data) {
+    let totalViolations = 0;
+    const contractorMap = {};
+
+    data.forEach(function(r) {
+        totalViolations += r.vCount;
+        if (r.vCount > 0) {
+            if (!contractorMap[r.contractor]) contractorMap[r.contractor] = 0;
+            contractorMap[r.contractor] += r.vCount;
+        }
+    });
+
+    document.getElementById('w-checks').textContent = data.length;
+    document.getElementById('w-violations').textContent = totalViolations;
+
+    const chartBody = document.getElementById('native-chart-body');
+    chartBody.innerHTML = "";
+
+    const sorted = Object.keys(contractorMap).map(function(name) {
+        return { name: name, count: contractorMap[name] };
+    }).sort(function(a, b) { return b.count - a.count; });
+
+    if (sorted.length === 0) {
+        chartBody.innerHTML = "<div style='text-align:center; color:#27ae60; font-weight:bold; padding:20px;'>Нарушений за выбранный период не зафиксировано!</div>";
+        return;
+    }
+
+    // Вычисляем максимальный показатель для масштабирования полос
+    let maxCount = 0;
+    sorted.forEach(function(item) { if(item.count > maxCount) maxCount = item.count; });
+
+    sorted.forEach(function(item) {
+        const percent = maxCount > 0 ? (item.count / maxCount) * 100 : 0;
+        const row = document.createElement('div');
+        row.className = "chart-row";
+        
+        row.innerHTML = '<div class="chart-label" title="' + item.name + '">' + item.name + '</div>' +
+                        '<div class="chart-bar-wrapper">' +
+                            '<div class="chart-bar-fill" style="width: ' + percent + '%;"></div>' +
+                        '</div>' +
+                        '<div class="chart-value">' + item.count + ' шт.</div>';
+                        
+        chartBody.appendChild(row);
     });
 }
 
