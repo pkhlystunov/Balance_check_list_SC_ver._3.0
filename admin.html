@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель управления и Аналитики ОТиПБ</title>
+    <!-- Подключение библиотеки графиков Chart.js -->
+    <script src="https://jsdelivr.net"></script>
+    <link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+
+<div class="admin-container">
+    <div class="header">
+        <h1>🛠️ Ситуационный центр ОТиПБ</h1>
+        <div id="sync-status" class="sync-indicator">● База данных подключена</div>
+    </div>
+
+    <!-- Переключатели вкладок -->
+    <div class="tabs">
+        <button class="tab-btn active" id="btn-registry" onclick="switchTab('registry-tab')">📋 Реестр предписаний</button>
+        <button class="tab-btn" id="btn-analytics" onclick="switchTab('analytics-tab')">📊 Гистограммы и аналитика</button>
+    </div>
+
+    <!-- Блок общих фильтров -->
+    <div class="filter-bar">
+        <div>
+            <label for="f-object">Объект контроля:</label>
+            <select id="f-object" onchange="applyFilters()">
+                <option value="Все">-- Все объекты --</option>
+            </select>
+        </div>
+        <div>
+            <label for="f-contractor">Подрядная организация (ПО):</label>
+            <select id="f-contractor" onchange="applyFilters()">
+                <option value="Все">-- Все подрядчики --</option>
+            </select>
+        </div>
+        <div>
+            <label for="f-start">Дата с:</label>
+            <input type="date" id="f-start" onchange="applyFilters()">
+        </div>
+        <div>
+            <label for="f-end">Дата по:</label>
+            <input type="date" id="f-end" onchange="applyFilters()">
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 1: РЕЕСТР ПРЕДПИСАНИЙ -->
+    <div id="registry-tab" class="tab-content active">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">Дата</th>
+                        <th style="width: 15%;">Объект</th>
+                        <th style="width: 15%;">Подрядчик</th>
+                        <th style="width: 40%;">Выявленные нарушения</th>
+                        <th style="width: 10%; text-align:center;">Статус</th>
+                        <th style="width: 10%; text-align:center;">Действие</th>
+                    </tr>
+                </thead>
+                <tbody id="registry-tbody">
+                    <tr><td colspan="6" style="text-align:center; padding:30px; font-style:italic; color:#666;">⏳ Загрузка оперативного реестра...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ВКЛАДКА 2: АНАЛИТИКА С ГИСТОГРАММОЙ -->
+    <div id="analytics-tab" class="tab-content">
+        <div class="widgets-grid">
+            <div class="widget-card widget-primary">
+                <h3>Проведено инспекций за период</h3>
+                <div id="w-checks">0</div>
+            </div>
+            <div class="widget-card widget-danger">
+                <h3>Выявлено нарушений за период</h3>
+                <div id="w-violations">0</div>
+            </div>
+        </div>
+        
+        <div class="chart-box">
+            <h3 style="margin-top:0; font-size:16px; color:#2c3e50;">Гистограмма: Распределение нарушений по подрядным организациям</h3>
+            <canvas id="violationsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Скрипты бизнес-логики и построения графиков -->
+<script src="admin-charts.js"></script>
+<script src="admin-app.js"></script>
+</body>
+</html>
