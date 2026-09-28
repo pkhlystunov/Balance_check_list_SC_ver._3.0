@@ -16,10 +16,10 @@
             font-family: -apple-system, BlinkMacSystemFont, Arial, sans-serif; 
             background: var(--bg); 
             margin: 0; 
-            padding: 20px 20px 80px 20px; /* Отступ снизу под мобильные кнопки */
+            padding: 0 20px 40px 20px; 
             color: #333; 
         }
-        .admin-container { max-width: 1100px; margin: 0 auto; }
+        .admin-container { max-width: 1100px; margin: 0 auto; padding-top: 20px; }
         
         .header { 
             display: flex; 
@@ -33,6 +33,24 @@
         }
         .header h1 { margin: 0; font-size: 20px; color: var(--primary); }
         .sync-indicator { font-size: 13px; color: #d35400; font-weight: bold; }
+
+        /* ЖЕСТКО ЗАКРЕПЛЕННОЕ МЕНЮ НАВИГАЦИИ ДЛЯ ПК (ПРИЛИПАЕТ К ВЕРХУ ПРИ СКРОЛЛЕ) */
+        .tabs-wrapper {
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            padding: 10px 0;
+            z-index: 999;
+            margin-bottom: 15px;
+        }
+        .tabs { display: flex; gap: 10px; max-width: 1100px; margin: 0 auto; }
+        .tab-btn { 
+            padding: 14px 25px; border: none; background: #bdc3c7; color: #fff; 
+            font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 14px; width: 100%;
+            transition: background 0.15s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .tab-btn.active { background: var(--primary); }
 
         /* СКВОЗНЫЕ ФИЛЬТРЫ */
         .filter-bar { 
@@ -51,7 +69,7 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* ВЫДЕЛЕННЫЕ ВИДЖЕТЫ АНАЛИТИКИ */
+        /* СВОДНЫЕ КАРТОЧКИ СТАТИСТИКИ */
         .widgets-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 25px; }
         .widget-card { background: #fff; border: 1px solid #ddd; padding: 15px; border-radius: 6px; text-align: center; }
         .widget-card h3 { margin: 0 0 5px 0; font-size: 14px; color: #7f8c8d; }
@@ -59,8 +77,8 @@
         .widget-primary { border-top: 4px solid var(--primary); }
         .widget-danger { border-top: 4px solid var(--danger); }
 
-        /* НАТИВНАЯ ГИСТОГРАММА НА CSS БЕЗ СБОЕВ */
-        .chart-box { background: #fff; padding: 20px; border: 1px solid #eee; border-radius: 6px; }
+        /* ДВЕ НАТИВНЫЕ ГИСТОГРАММЫ НА CSS */
+        .chart-box { background: #fff; padding: 20px; border: 1px solid #eee; border-radius: 6px; margin-bottom: 20px; }
         .native-chart-container { display: flex; flex-direction: column; gap: 14px; margin-top: 15px; }
         .chart-row { display: flex; align-items: center; font-size: 13px; }
         .chart-label { width: 35%; font-weight: bold; color: #34495e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 10px; }
@@ -68,40 +86,33 @@
         .chart-bar-fill { background: #e74c3c; height: 100%; transition: width 0.3s ease; border-radius: 4px; }
         .chart-value { width: 10%; text-align: right; font-weight: bold; color: #c0392b; padding-left: 10px; white-space: nowrap; }
 
-        /* РЕЕСТР ПРЕДПИСАНИЙ */
+        /* ТАБЛИЦА ЖУРНАЛА */
         .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .table-wrapper { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; }
         th { background: var(--gray-light); color: var(--primary); }
 
-        /* АДАПТИВНОЕ МЕНЮ НАВИГАЦИИ (ПАНЕЛЬ ДЛЯ ПК) */
-        .tabs { display: flex; gap: 5px; margin-bottom: 20px; }
-        .tab-btn { 
-            padding: 12px 25px; border: none; background: #bdc3c7; color: #fff; 
-            font-weight: bold; cursor: pointer; border-radius: 6px; font-size: 14px; width: 100%;
-        }
-        .tab-btn.active { background: var(--primary); }
-
-        /* МОБИЛЬНАЯ ВЕРСТКА (ЭКРАНЫ МЕНЕЕ 768px) */
+        /* МОБИЛЬНАЯ АДАПТАЦИЯ (ЭКРАНЫ МЕНЕЕ 768px) */
         @media (max-width: 768px) {
-            body { padding: 10px 10px 90px 10px; }
+            body { padding: 0 10px 95px 10px; }
+            .admin-container { padding-top: 10px; }
             .header { flex-direction: column; gap: 8px; text-align: center; padding: 12px; }
             .filter-bar { grid-template-columns: 1fr; gap: 10px; padding: 10px; }
             .widgets-grid { grid-template-columns: 1fr; gap: 10px; }
             .chart-row { flex-direction: column; align-items: flex-start; gap: 4px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-            .chart-label { width: 100%; padding: 0; }
+            .chart-label { width: 100%; padding: 0; white-space: normal; }
             .chart-bar-wrapper { width: 100%; height: 18px; }
             .chart-value { width: 100%; text-align: left; padding: 0; margin-top: 2px; }
             th, td { padding: 8px; font-size: 13px; }
             
-            /* КРУПНЫЕ КНОПКИ ВНИЗУ ЭКРАНА ДЛЯ СМАРТФОНОВ */
-            .tabs { 
-                position: fixed; bottom: 0; left: 0; width: 100%; background: #fff; 
-                box-shadow: 0 -3px 10px rgba(0,0,0,0.1); margin: 0; padding: 12px; 
-                display: grid; grid-template-columns: 1fr 1fr; gap: 10px; box-sizing: border-box; z-index: 9999;
+            /* НА МОБИЛЬНЫХ ОТКЛЮЧАЕМ ВЕРХНЕЕ ПРИЛИПАНИЕ И КРЕПИМ СТРОГО ВНИЗ ЭКРАНА */
+            .tabs-wrapper { 
+                position: fixed; bottom: 0; top: auto; left: 0; width: 100%; background: #fff; 
+                box-shadow: 0 -3px 10px rgba(0,0,0,0.1); margin: 0; padding: 12px; box-sizing: border-box;
             }
-            .tab-btn { padding: 15px 10px; font-size: 15px; border-radius: 8px; text-align: center; }
+            .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .tab-btn { padding: 15px 10px; font-size: 15px; border-radius: 8px; box-shadow: none; }
         }
     </style>
 </head>
@@ -113,7 +124,15 @@
         <div id="sync-status" class="sync-indicator">⏳ Подключение...</div>
     </div>
 
-    <!-- Общие фильтры по датам, объектам и ПО -->
+    <!-- Контейнер навигации (на ПК прилипает к верху, на смартфонах падает в подвал) -->
+    <div class="tabs-wrapper">
+        <div class="tabs">
+            <button class="tab-btn active" id="btn-registry" onclick="switchTab('registry-tab')">📋 Реестр предписаний</button>
+            <button class="tab-btn" id="btn-analytics" onclick="switchTab('analytics-tab')">📊 Аналитика и Графики</button>
+        </div>
+    </div>
+
+    <!-- Сквозные фильтры управления -->
     <div class="filter-bar">
         <div>
             <label for="f-object">Объект контроля:</label>
@@ -137,7 +156,7 @@
         </div>
     </div>
 
-    <!-- ВКЛАДКА 1: ОПЕРАТИВНЫЙ РЕЕСТР ПРЕДПИСАНИЙ -->
+    <!-- ВКЛАДКА 1: ОПЕРАТИВНЫЙ ЖУРНАЛ ЗАМЕЧАНИЙ -->
     <div id="registry-tab" class="tab-content active">
         <div class="card" style="border-left: 6px solid var(--primary);">
             <h3 style="margin-top: 0; color: var(--primary);">📋 Журнал зафиксированных замечаний</h3>
@@ -159,7 +178,7 @@
         </div>
     </div>
 
-    <!-- ВКЛАДКА 2: МОДУЛЬ АНАЛИТИКИ И НАТИВНЫХ ГИСТОГРАММ -->
+    <!-- ВКЛАДКА 2: ГЛУБОКАЯ АНАЛИТИКА (ОБЪЕКТЫ И ПОДРЯДЧИКИ) -->
     <div id="analytics-tab" class="tab-content">
         <div class="widgets-grid">
             <div class="widget-card widget-primary">
@@ -172,18 +191,21 @@
             </div>
         </div>
         
-        <div class="chart-box">
-            <h3 style="margin: 0; font-size: 15px; color: var(--primary);">📊 Распределение нарушений по подрядным организациям</h3>
-            <div id="native-chart-body" class="native-chart-container">
-                <!-- Сюда JS мгновенно выведет полосы графиков -->
+        <!-- ГРАФИК №1: АНТИРЕЙТИНГ СТРОИТЕЛЬНЫХ ПЛОЩАДОК -->
+        <div class="chart-box" style="border-left: 6px solid #3498db;">
+            <h3 style="margin: 0; font-size: 15px; color: var(--primary);">🏢 Антирейтинг Объектов строительства (Всего замечаний)</h3>
+            <div id="objects-chart-body" class="native-chart-container">
+                <!-- Сюда JS выведет полосы объектов -->
             </div>
         </div>
-    </div>
 
-    <!-- ДВЕ АКТИВНЫЕ КНОПКИ ПЕРЕКЛЮЧЕНИЯ (НА ПК - СВЕРХУ/СНИЗУ, НА ТЕЛЕФОНЕ - СТРОГО ВНИЗУ ЭКРАНА) -->
-    <div class="tabs">
-        <button class="tab-btn active" id="btn-registry" onclick="switchTab('registry-tab')">📋 Реестр предписаний</button>
-        <button class="tab-btn" id="btn-analytics" onclick="switchTab('analytics-tab')">📊 Аналитика и Графики</button>
+        <!-- ГРАФИК №2: АНТИРЕЙТИНГ ПОДРЯДЧИКОВ С ПРИВЯЗКОЙ К КОРОТКОМУ ИМЕНИ ОБЪЕКТА -->
+        <div class="chart-box" style="border-left: 6px solid var(--danger);">
+            <h3 style="margin: 0; font-size: 15px; color: var(--primary);">🚜 Антирейтинг Подрядных организаций [Объект | Подрядчик]</h3>
+            <div id="contractors-chart-body" class="native-chart-container">
+                <!-- Сюда JS выведет полосы подрядчиков -->
+            </div>
+        </div>
     </div>
 </div>
 
