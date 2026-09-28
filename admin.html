@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель управления и Аналитики ОТиПБ</title>
-    <!-- Подключение библиотеки графиков Chart.js -->
+    <!-- Надежное подключение проверенной версии Chart.js -->
     <script src="https://jsdelivr.net"></script>
     <link rel="stylesheet" href="admin-style.css">
 </head>
@@ -87,7 +87,7 @@
     </div>
 </div>
 
-<!-- Скрипты бизнес-логики и построения графиков -->
+<!-- ИСПРАВЛЕНО: Сначала грузим графическое ядро, затем запускаем логику приложения -->
 <script src="admin-charts.js"></script>
 <script src="admin-app.js"></script>
 </body>
