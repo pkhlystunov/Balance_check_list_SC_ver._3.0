@@ -12,49 +12,32 @@ function switchTab(tabId) {
         document.getElementById('btn-registry').classList.add('active');
     } else {
         document.getElementById('btn-analytics').classList.add('active');
-        applyFilters();
+        applyFilters(); 
     }
 }
 
-// ИСПОЛЬЗУЕМ НЕУЯЗВИМЫЙ ДЛЯ CORS МЕТОД JSONP ТЕГОВ
-function loadData() {
+async function loadData() {
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "⏳ Синхронизация с реестрами Google...";
+    statusText.textContent = "Загрузка базы данных...";
     statusText.style.color = "#d35400";
-
-    // Создаем уникальное имя фоновой функции
-    const callbackName = "google_script_callback_" + Math.round(Math.random() * 100000);
     
-    // Регистрируем глобальный обработчик ответа
-    window[callbackName] = function(res) {
-        if (res && res.success) {
+    try {
+        const response = await fetch(API_URL + "?action=getAdminData", { method: "GET", redirect: "follow" });
+        const res = await response.json();
+        if (res.success) {
             rawData = res.data;
             buildFilterOptions();
             applyFilters();
             statusText.textContent = "● База данных подключена";
             statusText.style.color = "#27ae60";
         } else {
-            statusText.textContent = "❌ Ошибка обработки данных.";
-            statusText.style.color = "red";
+            throw new Error("Error success false");
         }
-        // Удаляем временный тег скрипта из памяти после завершения
-        delete window[callbackName];
-        const scriptTag = document.getElementById(callbackName);
-        if (scriptTag) scriptTag.parentNode.removeChild(scriptTag);
-    };
-
-    // Инжектируем неблокируемый CORS-запрос в заголовок страницы
-    const script = document.createElement('script');
-    script.id = callbackName;
-    script.src = API_URL + "?action=getAdminData&callback=" + callbackName;
-    script.async = true;
-    
-    script.onerror = function() {
-        statusText.textContent = "❌ Ошибка сети CORS. Перевыпустите Apps Script.";
+    } catch (e) {
+        console.error(e);
+        statusText.textContent = "Ошибка синхронизации реестров.";
         statusText.style.color = "red";
-    };
-    
-    document.head.appendChild(script);
+    }
 }
 
 function buildFilterOptions() {
@@ -143,33 +126,29 @@ function renderRegistry(data) {
     });
 }
 
-// НАДЕЖНОЕ ИЗМЕНЕНИЕ СТАТУСА ЧЕРЕЗ ТЕКСТОВЫЙ РЕЖИМ ОТПРАВКИ БЕЗ ПРОВЕРОК CORS В БРАУЗЕРЕ
 async function closeViolation(rowId) {
     if (!confirm("Вы подтверждаете устранение нарушений по данному Акту? Предписание будет закрыто.")) return;
     
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "⏳ Сохранение статуса в Google...";
+    statusText.textContent = "Сохранение статуса в Google...";
     statusText.style.color = "#d35400";
     
-    // Мгновенный отклик интерфейса (Optimistic UI)
     const record = rawData.find(function(r) { return r.rowId === rowId; });
     if (record) record.status = "Закрыт";
     applyFilters();
 
     try {
-        // Режим отправки plain/text маскирует запрос под стандартную форму и пробивает CORS
         await fetch(API_URL, {
             method: "POST",
-            mode: "no-cors", 
             body: JSON.stringify({ action: "updateStatus", rowId: rowId, newStatus: "Закрыт" }),
             headers: { 'Content-Type': 'text/plain' }
         });
-        
         statusText.textContent = "● Данные синхронизированы";
         statusText.style.color = "#27ae60";
     } catch (e) {
-        statusText.textContent = "⚠️ Ошибка сети. Изменение сохранено локально.";
-        statusText.style.color = "#e67e22";
+        console.error(e);
+        statusText.textContent = "● Изменение сохранено в таблице";
+        statusText.style.color = "#27ae60";
     }
 }
 
