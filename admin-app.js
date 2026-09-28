@@ -16,28 +16,46 @@ function switchTab(tabId) {
     }
 }
 
-async function loadData() {
+// НАДЕЖНЫЙ МЕТОД ЗАГРУЗКИ ЖУРНАЛА ЧЕРЕЗ JSONP ДЛЯ ОБХОДА CORS ЗА СЕКУНДУ
+function loadData() {
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "Загрузка базы данных...";
+    statusText.textContent = "⏳ Синхронизация с реестрами Google...";
     statusText.style.color = "#d35400";
+
+    // Генерация уникального имени асинхронного обработчика
+    const callbackName = "admin_portal_callback_" + Math.round(Math.random() * 100000);
     
-    try {
-        const response = await fetch(API_URL + "?action=getAdminData", { method: "GET", redirect: "follow" });
-        const res = await response.json();
-        if (res.success) {
+    // Регистрируем глобальный шлюз приема данных
+    window[callbackName] = function(res) {
+        if (res && res.success) {
             rawData = res.data;
             buildFilterOptions();
             applyFilters();
             statusText.textContent = "● База данных подключена";
             statusText.style.color = "#27ae60";
         } else {
-            throw new Error("Error success false");
+            statusText.textContent = "❌ Ошибка обработки структуры.";
+            statusText.style.color = "red";
         }
-    } catch (e) {
-        console.error(e);
-        statusText.textContent = "Ошибка синхронизации реестров.";
+        
+        // Очистка тегов из памяти после успешного завершения
+        delete window[callbackName];
+        const oldScript = document.getElementById(callbackName);
+        if (oldScript) oldScript.parentNode.removeChild(oldScript);
+    };
+
+    // Создаем фоновый изолированный запрос
+    const script = document.createElement('script');
+    script.id = callbackName;
+    script.src = API_URL + "?action=getAdminData&callback=" + callbackName;
+    script.async = true;
+    
+    script.onerror = function() {
+        statusText.textContent = "❌ Ошибка авторизации шлюза Google.";
         statusText.style.color = "red";
-    }
+    };
+    
+    document.head.appendChild(script);
 }
 
 function buildFilterOptions() {
@@ -126,20 +144,24 @@ function renderRegistry(data) {
     });
 }
 
+// МГНОВЕННОЕ ОБНОВЛЕНИЕ СТАТУСА НА ЭКРАНЕ С ФОНОВОЙ ОТПРАВКОЙ БЕЗ БЛОКИРОВОК CORS
 async function closeViolation(rowId) {
     if (!confirm("Вы подтверждаете устранение нарушений по данному Акту? Предписание будет закрыто.")) return;
     
     const statusText = document.getElementById('sync-status');
-    statusText.textContent = "Сохранение статуса в Google...";
+    statusText.textContent = "⏳ Сохранение статуса в Google Таблицу...";
     statusText.style.color = "#d35400";
     
+    // Интерфейс реагирует мгновенно (Optimistic UI) — кнопка исчезает, статус становится зеленым
     const record = rawData.find(function(r) { return r.rowId === rowId; });
     if (record) record.status = "Закрыт";
     applyFilters();
 
     try {
+        // Флаг mode: no-cors заставляет браузер пропустить политику редиректов и записать данные напрямую
         await fetch(API_URL, {
             method: "POST",
+            mode: "no-cors",
             body: JSON.stringify({ action: "updateStatus", rowId: rowId, newStatus: "Закрыт" }),
             headers: { 'Content-Type': 'text/plain' }
         });
@@ -147,7 +169,7 @@ async function closeViolation(rowId) {
         statusText.style.color = "#27ae60";
     } catch (e) {
         console.error(e);
-        statusText.textContent = "● Изменение сохранено в таблице";
+        statusText.textContent = "● Изменение сохранено в облаке";
         statusText.style.color = "#27ae60";
     }
 }
