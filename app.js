@@ -285,7 +285,7 @@ async function submitAuditWithOffline() {
         if (item.status === 'Нарушение') {
             const inputField = document.getElementById('comment-' + item.id);
             const dateField = document.getElementById('date-limit-' + item.id);
-            if (inputField) item.comment = inputField.value.trim() || "не расписано";
+            if (inputField) item.comment = inputField.value.trim() || "-";
             if (dateField && dateField.value) {
                 const dParts = dateField.value.split('-');
                 item.deadLine = dParts[2] + '.' + dParts[1] + '.' + dParts[0];
@@ -349,7 +349,7 @@ function downloadChecklistPdf() {
             const cCat = row.insertCell(); cCat.style.border = "1px solid #ddd"; cCat.style.padding = "8px"; cCat.style.fontWeight = "bold"; cCat.style.fontSize = "13px"; cCat.textContent = "[" + item.category + "]";
             const cQuest = row.insertCell(); cQuest.style.border = "1px solid #ddd"; cQuest.style.padding = "8px"; cQuest.style.fontSize = "13px"; cQuest.textContent = item.question;
             const cComm = row.insertCell(); cComm.style.border = "1px solid #ddd"; cComm.style.padding = "8px"; cComm.style.fontSize = "13px";
-            cComm.innerHTML = item.comment + '<br><span style="color:#d35400; font-weight:bold; font-size:11px;">⏱️ Срок до: ' + item.deadLine + '</span>';
+            cComm.innerHTML = item.comment + '<br><span style="color:#d35400; font-weight:bold; font-size:11px;">Срок до: ' + item.deadLine + '</span>';
         });
     }
 
