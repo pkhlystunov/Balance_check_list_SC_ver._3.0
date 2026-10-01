@@ -16,12 +16,12 @@ window.addEventListener('offline', updateNetworkStatus);
 function updateNetworkStatus() {
     const indicator = document.getElementById('net-indicator');
     if (navigator.onLine) {
-        indicator.textContent = "Режим: Онлайн (Данные пишутся в облако)";
+        indicator.textContent = "🌐 Режим: Онлайн (Данные пишутся в облако)";
         indicator.className = "network-status online-mode";
         syncOfflineQueue();
         loadAnalyticsData(); 
     } else {
-        indicator.textContent = "Режим: Офлайн (Данные сохраняются на телефон)";
+        indicator.textContent = "⚠️ Режим: Офлайн (Данные сохраняются на телефон)";
         indicator.className = "network-status offline-mode";
     }
 }
@@ -72,13 +72,13 @@ function toggleMenu() {
 async function loadAnalyticsData() {
     if (!navigator.onLine) return;
     try {
-        const response = await fetch(API_URL + "?action=getAnalytics");
+        const response = await fetch(API_URL + "?action=getAnalytics", { method: "GET", redirect: "follow" });
         const res = await response.json();
         if (res.success) {
             historyRecords = res.data;
             calculateAnalytics();
         }
-    } catch (e) { console.log("Ошибка аналитики: ", e); }
+    } catch (e) { console.log(e); }
 }
 
 function calculateAnalytics() {
@@ -94,6 +94,7 @@ function calculateAnalytics() {
     let totalChecks = 0; let totalViolations = 0; let contractorMap = {};
 
     historyRecords.forEach(function(r) {
+        if (!r.date) return;
         const rDate = new Date(r.date);
         if (start && rDate < start) return;
         if (end && rDate > end) return;
@@ -216,6 +217,9 @@ function renderGroupedChecklist(data) {
             const commentInp = document.createElement('input'); commentInp.type = 'text'; commentInp.id = 'comment-' + q.id; commentInp.className = 'comment-box'; commentInp.placeholder = 'Опишите детали нарушения...';
             card.appendChild(commentInp);
             
+            const dateInp = document.createElement('input'); dateInp.type = 'date'; dateInp.id = 'date-limit-' + q.id; dateInp.className = 'comment-box'; dateInp.style.marginTop = '8px'; dateInp.style.display = 'none';
+            card.appendChild(dateInp);
+            
             const photoContainer = document.createElement('div'); photoContainer.className = 'photo-input-container'; photoContainer.id = 'photo-area-' + q.id; photoContainer.style.display = 'none';
             photoContainer.innerHTML = '<label style="margin-top:5px; font-size:13px; color:#555;">Прикрепить фото дефекта (до 4-х штук):</label>' +
                                        '<input type="file" id="file-' + q.id + '" accept="image/*" multiple style="font-size:13px;" onchange="handlePhotoUpload(this, ' + q.id + ')">' +
@@ -254,204 +258,131 @@ function handlePhotoUpload(input, questionId) {
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
-    });
+});
 }
 function setResult(id, status, question, category, normative) {
     let item = auditSession.results.find(function(r) { return r.id === id; });
     if (!item) {
-        item = { id: id, question: question, category: category, normative: normative, status: status, comment: '', photos: [] };
+        item = { id: id, question: question, category: category, normative: normative, status: status, comment: '', deadLine: '', photos: [] };
         auditSession.results.push(item);
     } else { item.status = status; }
     
     const comp = document.getElementById('comment-' + id);
+    const dateLimit = document.getElementById('date-limit-' + id);
     const photoArea = document.getElementById('photo-area-' + id);
     if (comp) comp.style.display = status === 'Нарушение' ? 'block' : 'none';
+    if (dateLimit) dateLimit.style.display = status === 'Нарушение' ? 'block' : 'none';
     if (photoArea) photoArea.style.display = status === 'Нарушение' ? 'block' : 'none';
-    
     document.getElementById('q-box-' + id).style.borderLeftColor = status === 'Соответствует' ? 'var(--success)' : 'var(--danger)';
 }
 
 async function submitAuditWithOffline() {
     if (auditSession.results.length === 0) return alert("Вы не ответили ни на один вопрос!");
-    
     const violations = [];
+    let hasEmptyDates = false;
+
     auditSession.results.forEach(function(item) {
-        const inputField = document.getElementById('comment-' + item.id);
-        if (inputField) item.comment = inputField.value.trim() || "не расписано";
-        
         if (item.status === 'Нарушение') {
-            let line = '• [' + item.category + '] ' + item.question;
-            if (item.normative) line += ' (Норматив: ' + item.normative + ')';
-            line += '\n  Замечание: ' + item.comment;
+            const inputField = document.getElementById('comment-' + item.id);
+            const dateField = document.getElementById('date-limit-' + item.id);
+            if (inputField) item.comment = inputField.value.trim() || "не расписано";
+            if (dateField && dateField.value) {
+                const dParts = dateField.value.split('-');
+                item.deadLine = dParts[2] + '.' + dParts[1] + '.' + dParts[0];
+            } else { item.deadLine = ""; hasEmptyDates = true; }
+            
+            let line = '• [' + item.category + '] ' + item.question + '\n  Замечание: ' + item.comment + ' (Срок до: ' + (item.deadLine || "не указан") + ')';
             violations.push(line);
         }
     });
 
-    auditSession.aggregatedViolations = violations.length > 0 ? violations.join("\n\n") : "Нарушений в ходе проверки не выявлено. Объект соответствует нормам ОТиПБ.";
+    if (hasEmptyDates) return alert("⚠️ Блокировка: Укажите дедлайн в календаре для всех нарушений!");
 
-    const btn = document.getElementById('submit-btn');
-    btn.disabled = true;
+    finalViolationsText = violations.length > 0 ? violations.join("\n\n") : "Нарушений не выявлено.";
+    auditSession.aggregatedViolations = finalViolationsText;
+    const btn = document.getElementById('submit-btn'); btn.disabled = true;
 
     if (navigator.onLine) {
-        btn.innerText = "⏳ Отправка в облако...";
+        btn.innerText = "⏳ Отправка...";
         try {
             await fetch(API_URL, { method: 'POST', body: JSON.stringify(auditSession), headers: { 'Content-Type': 'text/plain' } });
-            btn.innerText = "Акт сохранен!";
-            document.getElementById('pdf-btn').disabled = false;
-            alert("Данные успешно сохранены в реестр Google!");
-            loadAnalyticsData(); 
+            btn.innerText = "Акт сохранен!"; document.getElementById('pdf-btn').disabled = false;
+            alert("Данные успешно сохранены в реестр Google!"); loadAnalyticsData(); 
         } catch (e) { saveToOfflineQueue(auditSession); }
     } else { saveToOfflineQueue(auditSession); }
 }
 
 function saveToOfflineQueue(session) {
-    const queue = JSON.parse(localStorage.getItem('offline_audit_queue') || '[]');
-    queue.push(session);
+    const queue = JSON.parse(localStorage.getItem('offline_audit_queue') || '[]'); queue.push(session);
     localStorage.setItem('offline_audit_queue', JSON.stringify(queue));
-    
-    const btn = document.getElementById('submit-btn');
-    btn.innerText = "💾 Сохранено офлайн!";
-    document.getElementById('pdf-btn').disabled = false;
-    alert("⚠️ Данные сохранены на телефон и выгрузятся при появлении сети.");
+    document.getElementById('submit-btn').innerText = "💾 Офлайн-сохранено!"; document.getElementById('pdf-btn').disabled = false;
+    alert("⚠️ Данные сохранены в буфер телефона.");
 }
 
 async function syncOfflineQueue() {
-    const queue = JSON.parse(localStorage.getItem('offline_audit_queue') || '[]');
-    if (queue.length === 0) return;
+    const queue = JSON.parse(localStorage.getItem('offline_audit_queue') || '[]'); if (queue.length === 0) return;
     for (let i = 0; i < queue.length; i++) {
-        try {
-            await fetch(API_URL, { method: 'POST', body: JSON.stringify(queue[i]), headers: { 'Content-Type': 'text/plain' } });
-        } catch (e) { return; }
+        try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(queue[i]), headers: { 'Content-Type': 'text/plain' } }); } catch (e) { return; }
     }
-    localStorage.removeItem('offline_audit_queue');
-    alert("🔄 Обнаружен интернет: офлайн-акты успешно переданы в Google!");
-    loadAnalyticsData();
+    localStorage.removeItem('offline_audit_queue'); loadAnalyticsData();
 }
 
 // НАДЕЖНЫЙ СИСТЕМНЫЙ ВЫЗОВ НА ТИВНОЙ ПЕЧАТИ WINDOW.PRINT()
 function downloadChecklistPdf() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
-    
     document.getElementById('p-date').textContent = currentDateStr;
     document.getElementById('p-inspector').textContent = auditSession.inspector;
     document.getElementById('p-object').textContent = auditSession.objectName;
     document.getElementById('p-contractor').textContent = auditSession.contractor;
     
-    const tbody = document.getElementById('p-violations-tbody');
-    tbody.innerHTML = ""; 
-    
+    const tbody = document.getElementById('p-violations-tbody'); tbody.innerHTML = ""; 
     const violationsOnly = auditSession.results.filter(function(r) { return r.status === 'Нарушение'; });
     
     if (violationsOnly.length === 0) {
-        const row = tbody.insertRow();
-        const cell = row.insertCell();
-        cell.colSpan = 4; cell.style.padding = "12px"; cell.style.textAlign = "center";
-        cell.style.color = "#27ae60"; cell.style.fontWeight = "bold";
-        cell.textContent = "Нарушений в ходе проверки не выявлено. Объект соответствует нормам ОТиПБ.";
+        const row = tbody.insertRow(); const cell = row.insertCell(); cell.colSpan = 4; cell.style.padding = "12px"; cell.style.textAlign = "center";
+        cell.style.color = "#27ae60"; cell.style.fontWeight = "bold"; cell.textContent = "Нарушений не выявлено.";
     } else {
         violationsOnly.forEach(function(item, index) {
             const row = tbody.insertRow();
-            
-            const cNum = row.insertCell();
-            cNum.style.border = "1px solid #ddd"; cNum.style.padding = "8px"; cNum.style.textAlign = "center";
-            cNum.textContent = index + 1;
+            const cNum = row.insertCell(); cNum.style.border = "1px solid #ddd"; cNum.style.padding = "8px"; cNum.style.textAlign = "center"; cNum.textContent = index + 1;
             item.pdfIndex = index + 1; 
-            
-            const cCat = row.insertCell();
-            cCat.style.border = "1px solid #ddd"; cCat.style.padding = "8px"; cCat.style.fontWeight = "bold"; cCat.style.fontSize = "13px";
-            cCat.textContent = "[" + item.category + "]";
-            
-            const cQuest = row.insertCell();
-            cQuest.style.border = "1px solid #ddd"; cQuest.style.padding = "8px"; cQuest.style.fontSize = "13px";
-            
-            if (item.normative) {
-                cQuest.textContent = item.question;
-                const sm = document.createElement('small');
-                sm.style.color = '#555'; sm.style.display = 'block'; sm.style.marginTop = '4px';
-                sm.textContent = 'Норматив: ' + item.normative;
-                cQuest.appendChild(sm);
-            } else {
-                cQuest.textContent = item.question;
-            }
-            
-            const cComm = row.insertCell();
-            cComm.style.border = "1px solid #ddd"; cComm.style.padding = "8px"; cComm.style.fontSize = "13px";
-            cComm.style.color = "#b33939"; cComm.style.backgroundColor = "#fdf2f2";
-            cComm.textContent = item.comment;
+            const cCat = row.insertCell(); cCat.style.border = "1px solid #ddd"; cCat.style.padding = "8px"; cCat.style.fontWeight = "bold"; cCat.style.fontSize = "13px"; cCat.textContent = "[" + item.category + "]";
+            const cQuest = row.insertCell(); cQuest.style.border = "1px solid #ddd"; cQuest.style.padding = "8px"; cQuest.style.fontSize = "13px"; cQuest.textContent = item.question;
+            const cComm = row.insertCell(); cComm.style.border = "1px solid #ddd"; cComm.style.padding = "8px"; cComm.style.fontSize = "13px";
+            cComm.innerHTML = item.comment + '<br><span style="color:#d35400; font-weight:bold; font-size:11px;">⏱️ Срок до: ' + item.deadLine + '</span>';
         });
     }
 
-    const galleryWrapper = document.getElementById('pdf-gallery-wrapper');
-    galleryWrapper.innerHTML = ""; 
-    
+    const galleryWrapper = document.getElementById('pdf-gallery-wrapper'); galleryWrapper.innerHTML = ""; 
     let allUploadedPhotos = [];
     violationsOnly.forEach(function(item) {
         if (item.photos && item.photos.length > 0) {
-            item.photos.forEach(function(base64Src) {
-                allUploadedPhotos.push({
-                    src: base64Src,
-                    index: item.pdfIndex,
-                    category: item.category
-                });
-            });
+            item.photos.forEach(function(base64Src) { allUploadedPhotos.push({ src: base64Src, index: item.pdfIndex, category: item.category }); });
         }
     });
 
     if (allUploadedPhotos.length > 0) {
         let photosPerPage = 4;
-        let totalPhotos = allUploadedPhotos.length;
-        
-        for (let i = 0; i < totalPhotos; i += photosPerPage) {
-            const pageDiv = document.createElement('div');
-            pageDiv.className = "pdf-page-break"; 
-            
-            const titleDiv = document.createElement('div');
-            titleDiv.style.marginTop = '20px'; titleDiv.style.fontSize = '14px'; titleDiv.style.fontWeight = 'bold'; titleDiv.style.color = '#2c3e50'; titleDiv.style.borderBottom = '1px solid #2c3e50'; titleDiv.style.paddingBottom = '5px'; titleDiv.style.textTransform = 'uppercase';
-            titleDiv.textContent = 'Приложение к Акту. Фотофиксация нарушений (Лист ' + (Math.floor(i/4) + 1) + ')';
-            pageDiv.appendChild(titleDiv);
-            
-            const grid = document.createElement('div');
-            grid.className = "pdf-photo-grid";
-            
+        for (let i = 0; i < allUploadedPhotos.length; i += photosPerPage) {
+            const pageDiv = document.createElement('div'); pageDiv.className = "pdf-page-break"; 
+            pageDiv.innerHTML = '<div style="margin-top:20px; font-size:14px; font-weight:bold; color:#2c3e50; border-bottom:1px solid #2c3e50; padding-bottom:5px; text-transform:uppercase;">Приложение к Акту. Фотофиксация нарушений (Лист ' + (Math.floor(i/4) + 1) + ')</div>';
+            const grid = document.createElement('div'); grid.className = "pdf-photo-grid";
             let pagePhotos = allUploadedPhotos.slice(i, i + photosPerPage);
             pagePhotos.forEach(function(pData) {
-                const photoCard = document.createElement('div');
-                photoCard.className = "pdf-photo-card";
-                
-                const imgContainer = document.createElement('div');
-                imgContainer.className = "pdf-photo-container-img";
-                
-                const htmlImg = document.createElement('img');
-                htmlImg.className = "pdf-photo-img";
-                htmlImg.src = pData.src;
-                
-                imgContainer.appendChild(htmlImg);
-                photoCard.appendChild(imgContainer);
-                
-                const descDiv = document.createElement('div');
-                descDiv.className = "pdf-photo-desc";
-                descDiv.textContent = 'Нарушение №' + pData.index + ' ' + pData.category;
-                photoCard.appendChild(descDiv);
-                
+                const photoCard = document.createElement('div'); photoCard.className = "pdf-photo-card";
+                photoCard.innerHTML = '<div class="pdf-photo-container-img"><img class="pdf-photo-img" src="' + pData.src + '"></div><div class="pdf-photo-desc">Нарушение №' + pData.index + ' ' + pData.category + '</div>';
                 grid.appendChild(photoCard);
             });
-            
-            pageDiv.appendChild(grid);
-            galleryWrapper.appendChild(pageDiv);
+            pageDiv.appendChild(grid); galleryWrapper.appendChild(pageDiv);
         }
     }
 
-    // Запуск системной печати. Никаких выводов на страницу!
+    // Системный вызов менеджера печати. Копирование блоков на страницу полностью исключено!
     window.print();
     
     setTimeout(function() {
-        if (confirm("Выгрузка завершена! Начать новую проверку?")) {
-            location.reload();
-        }
+        if (confirm("Выгрузка завершена! Очистить чек-лист для нового обхода?")) location.reload();
     }, 1000);
 }
 
-function backToStep1() { 
-    document.getElementById('step-3-checklist').style.display = 'none'; 
-    document.getElementById('step-1-form').style.display = 'block'; 
-}
+function backToStep1() { document.getElementById('step-3-checklist').style.display = 'none'; document.getElementById('step-1-form').style.display = 'block'; }
