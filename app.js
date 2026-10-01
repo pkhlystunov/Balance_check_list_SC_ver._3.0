@@ -291,7 +291,12 @@ async function submitAuditWithOffline() {
                 item.deadLine = dParts[2] + '.' + dParts[1] + '.' + dParts[0];
             } else { item.deadLine = ""; hasEmptyDates = true; }
             
-            let line = '• [' + item.category + '] ' + item.question + '\n  Замечание: ' + item.comment + ' (Срок до: ' + (item.deadLine || "не указан") + ')';
+            // ИСПРАВЛЕНО: Сборщик строки теперь жестко проверяет и прикрепляет норматив из колонки C
+            let line = '• [' + item.category + '] ' + item.question;
+            if (item.normative) {
+                line += ' (Норматив: ' + item.normative + ')';
+            }
+            line += '\n  Замечание: ' + item.comment + ' (Срок до: ' + (item.deadLine || "не указан") + ')';
             violations.push(line);
         }
     });
@@ -327,7 +332,6 @@ async function syncOfflineQueue() {
     localStorage.removeItem('offline_audit_queue'); loadAnalyticsData();
 }
 
-// НАДЕЖНЫЙ СИСТЕМНЫЙ ВЫЗОВ НА ТИВНОЙ ПЕЧАТИ WINDOW.PRINT()
 function downloadChecklistPdf() {
     const currentDateStr = new Date().toLocaleDateString('ru-RU');
     document.getElementById('p-date').textContent = currentDateStr;
@@ -349,7 +353,7 @@ function downloadChecklistPdf() {
             const cCat = row.insertCell(); cCat.style.border = "1px solid #ddd"; cCat.style.padding = "8px"; cCat.style.fontWeight = "bold"; cCat.style.fontSize = "13px"; cCat.textContent = "[" + item.category + "]";
             const cQuest = row.insertCell(); cQuest.style.border = "1px solid #ddd"; cQuest.style.padding = "8px"; cQuest.style.fontSize = "13px"; cQuest.textContent = item.question;
             const cComm = row.insertCell(); cComm.style.border = "1px solid #ddd"; cComm.style.padding = "8px"; cComm.style.fontSize = "13px";
-            cComm.innerHTML = item.comment + '<br><span style="color:#d35400; font-weight:bold; font-size:11px;">Срок до: ' + item.deadLine + '</span>';
+            cComm.innerHTML = item.comment + '<br><span style="color:#d35400; font-weight:bold; font-size:11px;">⏱️ Срок до: ' + item.deadLine + '</span>';
         });
     }
 
@@ -377,7 +381,6 @@ function downloadChecklistPdf() {
         }
     }
 
-    // Системный вызов менеджера печати. Копирование блоков на страницу полностью исключено!
     window.print();
     
     setTimeout(function() {
