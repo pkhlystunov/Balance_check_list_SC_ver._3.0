@@ -291,7 +291,6 @@ async function submitAuditWithOffline() {
                 item.deadLine = dParts[2] + '.' + dParts[1] + '.' + dParts[0];
             } else { item.deadLine = ""; hasEmptyDates = true; }
             
-            // ИСПРАВЛЕНО: Сборщик строки теперь жестко проверяет и прикрепляет норматив из колонки C
             let line = '• [' + item.category + '] ' + item.question;
             if (item.normative) {
                 line += ' (Норматив: ' + item.normative + ')';
@@ -348,11 +347,29 @@ function downloadChecklistPdf() {
     } else {
         violationsOnly.forEach(function(item, index) {
             const row = tbody.insertRow();
+            
             const cNum = row.insertCell(); cNum.style.border = "1px solid #ddd"; cNum.style.padding = "8px"; cNum.style.textAlign = "center"; cNum.textContent = index + 1;
             item.pdfIndex = index + 1; 
-            const cCat = row.insertCell(); cCat.style.border = "1px solid #ddd"; cCat.style.padding = "8px"; cCat.style.fontWeight = "bold"; cCat.style.fontSize = "13px"; cCat.textContent = "[" + item.category + "]";
-            const cQuest = row.insertCell(); cQuest.style.border = "1px solid #ddd"; cQuest.style.padding = "8px"; cQuest.style.fontSize = "13px"; cQuest.textContent = item.question;
+            
+            const cCat = row.insertCell(); cCat.style.border = "1px solid #ddd"; cCat.style.padding = "8px"; cCat.style.fontWeight = "bold"; cCat.style.fontSize = "13px";
+            cCat.textContent = "[" + item.category + "]";
+            
+            const cQuest = row.insertCell(); cQuest.style.border = "1px solid #ddd"; cQuest.style.padding = "8px"; cQuest.style.fontSize = "13px";
+            
+            // ИСПРАВЛЕНО: Теперь норматив из колонки C принудительно рендерится в печатную таблицу Акта
+            if (item.normative) {
+                cQuest.textContent = item.question;
+                const sm = document.createElement('small');
+                sm.style.color = '#555'; sm.style.display = 'block'; sm.style.marginTop = '5px';
+                sm.style.fontStyle = 'italic';
+                sm.textContent = 'Норматив: ' + item.normative;
+                cQuest.appendChild(sm);
+            } else {
+                cQuest.textContent = item.question;
+            }
+            
             const cComm = row.insertCell(); cComm.style.border = "1px solid #ddd"; cComm.style.padding = "8px"; cComm.style.fontSize = "13px";
+            cComm.style.color = "#b33939"; cComm.style.backgroundColor = "#fdf2f2";
             cComm.innerHTML = item.comment + '<br><span style="color:#d35400; font-weight:bold; font-size:11px;">⏱️ Срок до: ' + item.deadLine + '</span>';
         });
     }
@@ -389,3 +406,4 @@ function downloadChecklistPdf() {
 }
 
 function backToStep1() { document.getElementById('step-3-checklist').style.display = 'none'; document.getElementById('step-1-form').style.display = 'block'; }
+
